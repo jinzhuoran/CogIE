@@ -1,0 +1,103 @@
+ws:
+  chinese:
+    msra:
+      path: model/ws/msra/toolkit
+      data:
+        model: model.pt
+        vocabulary: vocabulary.txt
+      bert_model: hfl/chinese-roberta-wwm-ext
+  english:
+    nltk:
+      path:
+      data:
+        model:
+        vocabulary:
+      bert_model:
+ner:
+  english:
+    trex:
+      path: model/ner/trex/toolkit
+      data:
+        model: model.pkl
+        vocabulary: vocabulary.txt
+      bert_model: bert-base-cased
+
+    ace2005:
+      path: model/ner/ace2005/toolkit
+      data:
+        model: model.pt
+        vocabulary: vocabulary.txt
+      bert_model: bert-base-cased
+
+    msra:
+      path: model/ner/msra/toolkit
+      data:
+        model: model.pt
+        vocabulary: vocabulary.txt
+      bert_model: hfl/chinese-roberta-wwm-ext
+
+et:
+  english:
+    ontonotes:
+      path: model/et/ontonotes/toolkit
+      data:
+        model: model.pkl
+        vocabulary: vocabulary.txt
+      bert_model: bert-base-cased
+
+re:
+  english:
+    trex:
+      path: model/re/trex/toolkit
+      data:
+        model: model.pt
+        vocabulary: vocabulary.txt
+      bert_model: bert-base-cased
+
+ee:
+  english:
+    ace2005:
+      path: model/ee/ace2005/toolkit
+      data:
+        model: model.pt
+        trigger_vocabulary: vocabulary.txt
+        argument_vocabulary: argument_vocabulary.txt
+      bert_model: bert-base-cased
+
+fn:
+  english:
+    frame:
+      path: model/fn/framenet/toolkit
+      data:
+        model: model.pt
+        vocabulary: frame_vocabulary.txt
+      bert_model: bert-base-cased
+
+    argument:
+      path: model/fn/argument/toolkit
+      data:
+        model: model.pt
+        frame_vocabulary: frame_vocabulary.txt
+        argument_vocabulary: argument_vocabulary.txt
+      bert_model: bert-base-cased
+
+el:
+  blink:
+    path: model/el/blink
+    data:
+      biencoder_model: biencoder_wiki_large.bin
+      biencoder_config: biencoder_wiki_large.json
+      entity_catalogue: entity.jsonl
+      entity_encoding: all_entities_large.t7
+      crossencoder_model: crossencoder_wiki_large.bin
+      crossencoder_config: crossencoder_wiki_large.json
+      index_path: faiss_hnsw_index.pkl
+
+  cognet:
+    path: model/el/cognet
+    data:
+      file: wikidata2wikipedia.json
+
+device_id: [ 0 ]
+device: cuda
+max_seq_length: 256
