@@ -43,3 +43,110 @@ Frame semantic parsing is the task of automatically extracting semantic structur
 - argument identification: the task of identifying all frame-specific frame.
 
 CogIE links raw text to CogNet by matching frames, there are almost 800 LUs and 1900 FEs in CogIE.
+
+## How to use CogIE?
+
+### Interface Call
+
+```python
+import cogie
+
+# tokenize sentence into words
+tokenize_toolkit = cogie.TokenizeToolkit(task='ws', language='english', corpus=None)
+words = tokenize_toolkit.run('Ontario is the most populous province in Canada.')
+# named entity recognition
+ner_toolkit = cogie.NerToolkit(task='ner', language='english', corpus='trex')
+ner_result = ner_toolkit.run(words)
+# relation extraction
+re_toolkit = cogie.ReToolkit(task='re', language='english', corpus='trex')
+re_result = re_toolkit.run(words, ner_result)
+
+token_toolkit = cogie.TokenizeToolkit(task='ws', language='english', corpus=None)
+words = token_toolkit.run(
+    'The true voodoo-worshipper attempts nothing of importance without certain sacrifices which are intended to propitiate his unclean gods.')
+# frame identification
+fn_toolkit = cogie.FnToolkit(task='fn', language='english', corpus=None)
+fn_result = fn_toolkit.run(words)
+# argument identification
+argument_toolkit = cogie.ArgumentToolkit(task='fn', language='english', corpus='argument')
+argument_result = argument_toolkit.run(words, fn_result)
+```
+
+
+
+### Model Train
+
+```python
+import cogie
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import RandomSampler
+from cogie.io.loader.ner.conll2003 import Conll2003NERLoader
+from cogie.io.processor.ner.conll2003 import Conll2003NERProcessor
+
+device = torch.device('cuda')
+# load dataset
+loader = Conll2003NERLoader()
+train_data, dev_data, test_data = loader.load_all('../../../cognlp/data/ner/conll2003/data')
+# process raw dataset
+processor = Conll2003NERProcessor(label_list=loader.get_labels(), path='../../../cognlp/data/ner/conll2003/data/',
+                                  bert_model='bert-large-cased')
+vocabulary = cogie.Vocabulary.load('../../../cognlp/data/ner/conll2003/data/vocabulary.txt')
+
+# add data to DataTableSet
+train_datable = processor.process(train_data)
+train_dataset = cogie.DataTableSet(train_datable)
+train_sampler = RandomSampler(train_dataset)
+
+dev_datable = processor.process(dev_data)
+dev_dataset = cogie.DataTableSet(dev_datable)
+dev_sampler = RandomSampler(dev_dataset)
+
+test_datable = processor.process(test_data)
+test_dataset = cogie.DataTableSet(test_datable)
+test_sampler = RandomSampler(test_dataset)
+
+# define model, metric, loss, optimizer 
+model = cogie.Bert4Ner(len(vocabulary), bert_model='bert-base-cased', embedding_size=768)
+metric = cogie.SpanFPreRecMetric(vocabulary)
+loss = nn.CrossEntropyLoss(ignore_index=0)
+optimizer = optim.Adam(model.parameters(), lr=0.00001)
+
+# start training
+trainer = cogie.Trainer(model,
+                        train_dataset,
+                        dev_data=dev_dataset,
+                        n_epochs=20,
+                        batch_size=20,
+                        loss=loss,
+                        optimizer=optimizer,
+                        scheduler=None,
+                        metrics=metric,
+                        train_sampler=train_sampler,
+                        dev_sampler=dev_sampler,
+                        drop_last=False,
+                        gradient_accumulation_steps=1,
+                        num_workers=5,
+                        save_path="../../../cognlp/data/ner/conll2003/model",
+                        save_file=None,
+                        print_every=None,
+                        scheduler_steps=None,
+                        validate_steps=100,
+                        save_steps=None,
+                        grad_norm=None,
+                        use_tqdm=True,
+                        device=device,
+                        device_ids=[0, 1, 2, 3],
+                        callbacks=None,
+                        metric_key=None,
+                        writer_path='../../../cognlp/data/ner/conll2003/tensorboard',
+                        fp16=False,
+                        fp16_opt_level='O1',
+                        checkpoint_path=None,
+                        task='conll2003',
+                        logger_path='../../../cognlp/data/ner/conll2003/logger')
+
+trainer.train()
+```
+
