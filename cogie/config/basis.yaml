@@ -1,9 +1,9 @@
 ws:
   chinese:
     msra:
-      path: model/ws/msra/toolkit
+      path: models/ws/msra/toolkit
       data:
-        model: model.pt
+        model: models.pt
         vocabulary: vocabulary.txt
       bert_model: hfl/chinese-roberta-wwm-ext
   english:
@@ -16,50 +16,50 @@ ws:
 ner:
   english:
     trex:
-      path: model/ner/trex/toolkit
+      path: models/ner/trex/toolkit
       data:
-        model: model.pkl
+        model: models.pkl
         vocabulary: vocabulary.txt
       bert_model: bert-base-cased
 
     ace2005:
-      path: model/ner/ace2005/toolkit
+      path: models/ner/ace2005/toolkit
       data:
-        model: model.pt
+        model: models.pt
         vocabulary: vocabulary.txt
       bert_model: bert-base-cased
 
     msra:
-      path: model/ner/msra/toolkit
+      path: models/ner/msra/toolkit
       data:
-        model: model.pt
+        model: models.pt
         vocabulary: vocabulary.txt
       bert_model: hfl/chinese-roberta-wwm-ext
 
 et:
   english:
     ontonotes:
-      path: model/et/ontonotes/toolkit
+      path: models/et/ontonotes/toolkit
       data:
-        model: model.pkl
+        model: models.pkl
         vocabulary: vocabulary.txt
       bert_model: bert-base-cased
 
 re:
   english:
     trex:
-      path: model/re/trex/toolkit
+      path: models/re/trex/toolkit
       data:
-        model: model.pt
+        model: models.pt
         vocabulary: vocabulary.txt
       bert_model: bert-base-cased
 
 ee:
   english:
     ace2005:
-      path: model/ee/ace2005/toolkit
+      path: models/ee/ace2005/toolkit
       data:
-        model: model.pt
+        model: models.pt
         trigger_vocabulary: vocabulary.txt
         argument_vocabulary: argument_vocabulary.txt
       bert_model: bert-base-cased
@@ -67,23 +67,23 @@ ee:
 fn:
   english:
     frame:
-      path: model/fn/framenet/toolkit
+      path: models/fn/framenet/toolkit
       data:
-        model: model.pt
+        model: models.pt
         vocabulary: frame_vocabulary.txt
       bert_model: bert-base-cased
 
     argument:
-      path: model/fn/argument/toolkit
+      path: models/fn/argument/toolkit
       data:
-        model: model.pt
+        model: models.pt
         frame_vocabulary: frame_vocabulary.txt
         argument_vocabulary: argument_vocabulary.txt
       bert_model: bert-base-cased
 
 el:
   blink:
-    path: model/el/blink
+    path: models/el/blink
     data:
       biencoder_model: biencoder_wiki_large.bin
       biencoder_config: biencoder_wiki_large.json
@@ -94,7 +94,7 @@ el:
       index_path: faiss_hnsw_index.pkl
 
   cognet:
-    path: model/el/cognet
+    path: models/el/cognet
     data:
       file: wikidata2wikipedia.json
 

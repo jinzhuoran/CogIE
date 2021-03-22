@@ -189,7 +189,7 @@ class Trainer:
         epochs_trained = 0
         # Check if continuing training from a checkpoint
         if self.checkpoint_path and os.path.exists(self.checkpoint_path) and "checkpoint" in self.checkpoint_path:
-            # set global_step to gobal_step of last saved checkpoint from model path
+            # set global_step to gobal_step of last saved checkpoint from models path
             global_step = int(self.checkpoint_path.split("-")[-1].split("/")[0])
             epochs_trained = epochs_trained + global_step // (
                     len(self.train_dataloader) // self.gradient_accumulation_steps)
@@ -201,8 +201,8 @@ class Trainer:
             self.logger.info("Continuing training from global step %d", global_step)
             self.logger.info("Will skip the first %d steps in the first epoch", steps_trained_in_current_epoch)
 
-            if os.path.isfile(os.path.join(self.checkpoint_path, "model.pt")):
-                self.model = load_model(self.model, os.path.join(self.checkpoint_path, "model.pt"))
+            if os.path.isfile(os.path.join(self.checkpoint_path, "models.pt")):
+                self.model = load_model(self.model, os.path.join(self.checkpoint_path, "models.pt"))
             if os.path.isfile(os.path.join(self.checkpoint_path, "optimizer.pt")):
                 self.optimizer.load_state_dict(torch.load(os.path.join(self.checkpoint_path, "optimizer.pt")))
             if os.path.isfile(os.path.join(self.checkpoint_path, "scheduler.pt")):
@@ -282,12 +282,12 @@ class Trainer:
                 if self.save_path and isinstance(self.save_steps, int) and global_step % self.save_steps == 0:
                     save_dir = os.path.join(self.save_path, self.task)
                     save_dir = os.path.join(save_dir, self.save_time)
-                    self.logger.info("Saving model step = %d", global_step)
+                    self.logger.info("Saving models step = %d", global_step)
                     output_dir = os.path.join(save_dir, "checkpoint-{}".format(global_step))
                     if not os.path.exists(output_dir):
                         os.makedirs(output_dir)
-                    self.logger.debug("Saving model checkpoint to %s", output_dir)
-                    save_model(model=self.model, model_path=os.path.join(output_dir, "model.pt"))
+                    self.logger.debug("Saving models checkpoint to %s", output_dir)
+                    save_model(model=self.model, model_path=os.path.join(output_dir, "models.pt"))
                     # logger.info("Saving trainer arguments to %s", output_dir)
                     # save_json(vars(self), os.path.join(output_dir, "trainer.json"))
                     if self.optimizer:

@@ -1,6 +1,6 @@
 """
 @Author: jinzhuan
-@File: model.py
+@File: models.py
 @Desc: 
 """
 import os
@@ -43,7 +43,7 @@ def check_root(root_path=ROOT_PATH):
     if not os.path.exists(root_path):
         os.mkdir(root_path)
         os.mkdir(os.path.join(root_path, 'configuration'))
-        os.mkdir(os.path.join(root_path, 'model'))
+        os.mkdir(os.path.join(root_path, 'models'))
         load_configuration()
 
 

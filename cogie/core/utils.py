@@ -292,7 +292,7 @@ def _move_model_to_device(model, device):
             raise ValueError("There is no usable gpu. set `device` as `cpu` or `None`.")
 
     if isinstance(model, torch.nn.DataParallel):
-        raise RuntimeError("When model is `torch.nn.DataParallel`, the device has to be `None`.")
+        raise RuntimeError("When models is `torch.nn.DataParallel`, the device has to be `None`.")
 
     if isinstance(device, int):
         assert device > -1, "device can only be non-negative integer"

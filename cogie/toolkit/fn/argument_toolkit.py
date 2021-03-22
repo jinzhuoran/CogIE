@@ -21,7 +21,7 @@ class ArgumentToolkit(BaseToolkit):
         self.corpus = corpus
         download_model(config[task][language][corpus])
         path = config[task][language][corpus]['path']
-        model = config[task][language][corpus]['data']['model']
+        model = config[task][language][corpus]['data']['models']
         trigger_vocabulary = config[task][language][corpus]['data']['frame_vocabulary']
         argument_vocabulary = config[task][language][corpus]['data']['argument_vocabulary']
         bert_model = config[task][language][corpus]['bert_model']
