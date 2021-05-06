@@ -50,7 +50,7 @@ trainer = Trainer(model,
                   dev_sampler=dev_sampler,
                   drop_last=False,
                   gradient_accumulation_steps=1,
-                  save_path='../../../cognlp/data/fn/framenet/model',
+                  save_path='../../../cogie/data/fn/framenet/model',
                   save_file=None,
                   print_every=None,
                   scheduler_steps=None,
@@ -63,12 +63,12 @@ trainer = Trainer(model,
                   device_ids=[4],
                   callbacks=None,
                   metric_key=None,
-                  writer_path='../../../cognlp/data/fn/framenet/tensorboard',
+                  writer_path='../../../cogie/data/fn/framenet/tensorboard',
                   fp16=False,
                   fp16_opt_level='O1',
                   checkpoint_path=None,
                   task='framenet-test',
-                  logger_path='../../../cognlp/data/fn/framenet/logger')
+                  logger_path='../../../cogie/data/fn/framenet/logger')
 
 trainer.train()
 print(1)
