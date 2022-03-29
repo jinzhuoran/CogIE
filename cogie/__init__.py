@@ -51,6 +51,7 @@ __all__ = [
     "Bert4ArgumentParallel",
     "BiEncoderRanker",
     "CrossEncoderRanker",
+    "Flair",
     "DenseHNSWFlatIndexer",
     "DenseFlatIndexer",
 

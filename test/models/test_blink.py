@@ -97,6 +97,10 @@ id2url = {
     for k, v in wikipedia_id2local_id.items()
 }
 
+# Load NER model
+ner_model = Flair()
+ner_output_data = ner_model.predict([text])
+
 
 
 
