@@ -415,3 +415,36 @@ def get_samples_weight(datable, vocabulary):
         else:
             samples_weight.append(1.0)
     return np.array(samples_weight)
+
+def el_load_candidates(entity_catalogue):
+    # load all the 5903527 entities
+    title2id = {}
+    id2title = {}
+    id2text = {}
+    wikipedia_id2local_id = {}
+    local_idx = 0
+    with open(entity_catalogue, "r") as fin:
+        lines = fin.readlines()
+        for line in lines:
+            entity = json.loads(line)
+
+            if "idx" in entity:
+                split = entity["idx"].split("curid=")
+                if len(split) > 1:
+                    wikipedia_id = int(split[-1].strip())
+                else:
+                    wikipedia_id = entity["idx"].strip()
+
+                assert wikipedia_id not in wikipedia_id2local_id
+                wikipedia_id2local_id[wikipedia_id] = local_idx
+
+            title2id[entity["title"]] = local_idx
+            id2title[local_idx] = entity["title"]
+            id2text[local_idx] = entity["text"]
+            local_idx += 1
+    return (
+        title2id,
+        id2title,
+        id2text,
+        wikipedia_id2local_id,
+    )

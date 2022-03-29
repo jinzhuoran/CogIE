@@ -4,4 +4,6 @@ from .crossencoder import *
 __all__=[
     "BiEncoderRanker",
     "CrossEncoderRanker",
+    "DenseHNSWFlatIndexer",
+    "DenseFlatIndexer",
 ]

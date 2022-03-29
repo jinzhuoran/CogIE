@@ -16,4 +16,5 @@ __all__ = [
     "absolute_path",
     "load_model",
     "module2parallel",
+    "el_load_candidates",
 ]

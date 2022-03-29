@@ -46,4 +46,7 @@ __all__ = [
 
     "BiEncoderRanker",
     "CrossEncoderRanker",
+
+    "DenseHNSWFlatIndexer",
+    "DenseFlatIndexer",
 ]

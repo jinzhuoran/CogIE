@@ -1,4 +1,5 @@
 from cogie import *
+import json
 
 # Configurations
 biencoder_params = {"data_path": "",
@@ -74,7 +75,7 @@ crossencoder_params={
     "path_to_model":'blink_models/crossencoder_wiki_large.bin',
 }
 
-entity_catalogue = "blink_models/entity.json"
+entity_catalogue = "blink_models/entity.jsonl"
 entity_encoding = "blink_modes/all_entities_large.t7"
 faiss_index = "hnsw"
 index_path = "blink_models/faiss_hnsw_index.pkl"
@@ -86,6 +87,16 @@ biencoder = BiEncoderRanker(biencoder_params)
 
 # Load CrossEncoder
 crossencoder = CrossEncoderRanker(crossencoder_params)
+
+# Load Indexer and all the 5903527 entities
+indexer = DenseHNSWFlatIndexer(1)
+indexer.deserialize_from(index_path)
+title2id,id2title,id2text,wikipedia_id2local_id = el_load_candidates(entity_catalogue)
+id2url = {
+    v: "https://en.wikipedia.org/wiki?curid=%s" % k
+    for k, v in wikipedia_id2local_id.items()
+}
+
 
 
 

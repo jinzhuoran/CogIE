@@ -51,6 +51,8 @@ __all__ = [
     "Bert4ArgumentParallel",
     "BiEncoderRanker",
     "CrossEncoderRanker",
+    "DenseHNSWFlatIndexer",
+    "DenseFlatIndexer",
 
     "Vocabulary",
     "DataTable",
@@ -60,6 +62,7 @@ __all__ = [
     "load_configuration",
     "download_model",
     "absolute_path",
+    "el_load_candidates",
 
     "BaseToolkit",
     "TokenizeToolkit",
@@ -70,5 +73,4 @@ __all__ = [
     "FnToolkit",
     "EeToolkit",
     "ArgumentToolkit",
-
 ]
