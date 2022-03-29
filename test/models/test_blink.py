@@ -1,8 +1,98 @@
 from cogie import *
 
+# Configurations
+biencoder_params = {"data_path": "",
+                    "bert_model": "bert-large-uncased",
+                    "model_output_path": None,
+                    "context_key": "context",
+                    "lowercase": True,
+                    "top_k": 10,
+                    "max_seq_length": 256,
+                    "evaluate": False,
+                    "evaluate_with_pregenerated_candidates": False,
+                    "output_eval_file": None,
+                    "debug": False,
+                    "silent": False,
+                    "train_batch_size": 8,
+                    "eval_batch_size": 8,
+                    "data_parallel": False,
+                    "max_grad_norm": 1.0,
+                    "learning_rate": 3e-05,
+                    "num_train_epochs": 1,
+                    "print_interval": 5,
+                    "eval_interval": 40,
+                    "save_interval": 1,
+                    "warmup_proportion": 0.1,
+                    "no_cuda": True,
+                    "seed": 52313,
+                    "gradient_accumulation_steps": 1,
+                    "out_dim": 100,
+                    "pull_from_layer": -1,
+                    "type_optimization": "all_encoder_layers",
+                    "add_linear": False,
+                    "shuffle": False,
+                    "encode_batch_size": 8,
+                    "max_context_length": 32,
+                    "max_cand_length": 128,
+                    "path_to_model":"blink_models/biencoder_wiki_large.bin",
+          }
+
+crossencoder_params={
+    "data_path": "",
+    "bert_model": "bert-large-uncased",
+    "model_output_path": None,
+    "context_key": "context",
+    "lowercase": True,
+    "top_k": 100,
+    "max_context_length": 32,
+    "max_cand_length": 128,
+    "max_seq_length": 160,
+    "evaluate": False,
+    "evaluate_with_pregenerated_candidates": False,
+    "output_eval_file": None,
+    "debug": False,
+    "silent": False,
+    "train_batch_size": 1,
+    "eval_batch_size": 1,
+    "data_parallel": False,
+    "max_grad_norm": 1.0,
+    "learning_rate": 3e-05,
+    "num_train_epochs": 5,
+    "print_interval": 10,
+    "eval_interval": 2000,
+    "save_interval": 1,
+    "warmup_proportion": 0.1,
+    "no_cuda": True,
+    "seed": 52313,
+    "gradient_accumulation_steps": 1,
+    "out_dim": 1,
+    "pull_from_layer": -1,
+    "type_optimization": "all_encoder_layers",
+    "add_linear": True,
+    "shuffle": False,
+    "segment": True,
+    "path_to_model":'blink_models/crossencoder_wiki_large.bin',
+}
+
+entity_catalogue = "blink_models/entity.json"
+entity_encoding = "blink_modes/all_entities_large.t7"
+faiss_index = "hnsw"
+index_path = "blink_models/faiss_hnsw_index.pkl"
+
 text = "The Russian and Ukrainians delegations have now arrived at the Dolmabahce - President Erdogan’s office on the banks of the Bosphorus here in Istanbul."
 
 # Load BiEncoder
+biencoder = BiEncoderRanker(biencoder_params)
+
+# Load CrossEncoder
+crossencoder = CrossEncoderRanker(crossencoder_params)
+
+
+
+
+
+
+
 
 
 
