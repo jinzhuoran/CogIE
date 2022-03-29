@@ -10,7 +10,7 @@ import torch
 
 
 class ReToolkit(BaseToolkit):
-    def __init__(self, task='re', language='english', corpus=None):
+    def __init__(self, task='rc', language='english', corpus=None):
         config = load_configuration()
         if language == 'chinese':
             if corpus is None:
@@ -51,7 +51,7 @@ class ReToolkit(BaseToolkit):
                 self.model.eval()
                 for span in spans:
                     span["position"] = [span["start"], span["end"]]
-                import cogie.io.processor.re.trex as processor
+                import cogie.io.processor.rc.trex as processor
                 input_ids, attention_mask, head_indexes, entity_mentions, relation_mentions, entity_mentions_mask, relation_mentions_mask = \
                     processor.process(words, spans, [], self.tokenizer, self.vocabulary, self.max_seq_length)
                 input_ids = torch.tensor([input_ids], dtype=torch.long, device=self.device)

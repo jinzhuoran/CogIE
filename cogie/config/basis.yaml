@@ -48,7 +48,7 @@ et:
 re:
   english:
     trex:
-      path: models/re/trex/toolkit
+      path: models/rc/trex/toolkit
       data:
         model: models.pt
         vocabulary: vocabulary.txt
