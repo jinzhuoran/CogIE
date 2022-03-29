@@ -11,6 +11,8 @@ from .fn import *
 from .ee import *
 from .ws import *
 from .common import *
+from .el import *
+
 __all__ = [
     "BaseModule",
     "BaseFunction",
@@ -41,4 +43,7 @@ __all__ = [
     "Bert4FrameParallel",
     "Bert4Argument",
     "Bert4ArgumentParallel",
+
+    "BiEncoderRanker",
+    "CrossEncoderRanker",
 ]

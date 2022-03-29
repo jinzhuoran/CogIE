@@ -49,6 +49,8 @@ __all__ = [
     "Bert4FrameParallel",
     "Bert4Argument",
     "Bert4ArgumentParallel",
+    "BiEncoderRanker",
+    "CrossEncoderRanker",
 
     "Vocabulary",
     "DataTable",
