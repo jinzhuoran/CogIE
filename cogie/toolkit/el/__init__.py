@@ -10,5 +10,6 @@ __all__ = [
     "process_mention_data",
     "prepare_crossencoder_data",
     "run_biencoder",
+    "run_crossencoder",
     "el_modify",
 ]

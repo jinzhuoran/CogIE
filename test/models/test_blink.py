@@ -1,3 +1,5 @@
+import logging
+
 from cogie import *
 from torch.utils.data import DataLoader, SequentialSampler, TensorDataset
 import json
@@ -142,6 +144,8 @@ biencoder_dataloader = DataLoader(
 labels, nns, scores = run_biencoder(
     biencoder, biencoder_dataloader, candidate_encoding=None, top_k=top_k, indexer=faiss_indexer
 )
+print("\nfast (biencoder) predictions:")
+el_print_colorful_text(text, samples)
 idx = 0
 for entity_list, sample in zip(nns, samples):
     e_id = entity_list[0]
@@ -164,7 +168,28 @@ crossencoder_dataloader = DataLoader(
     crossencoder_tensor_data, sampler=crossencoder_sampler, batch_size=crossencoder_params["eval_batch_size"]
 )
 
+# CrossEncoder Prediction
+accuracy, index_array, unsorted_scores = run_crossencoder(
+    crossencoder,
+    crossencoder_dataloader,
+    logger=logging.Logger(__name__),
+    context_len=biencoder_params["max_context_length"],
+)
 
+# print crossencoder prediction
+print("\naccurate (crossencoder) predictions:")
+el_print_colorful_text(text, samples)
+idx = 0
+for entity_list, index_list, sample in zip(nns, index_array, samples):
+    e_id = entity_list[index_list[-1]]
+    e_title = id2title[e_id]
+    e_text = id2text[e_id]
+    e_url = id2url[e_id]
+    el_print_colorful_prediction(
+        idx, sample, e_id, e_title, e_text, e_url, show_url=True
+    )
+    idx += 1
+print()
 
 
 
