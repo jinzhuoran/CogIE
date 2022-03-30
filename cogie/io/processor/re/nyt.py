@@ -3,6 +3,7 @@ from cogie.utils import load_json
 from cogie.core import DataTable
 import torch
 from transformers import BertTokenizer
+from tqdm import tqdm
 
 class NYTREProcessor:
     def __init__(self, path=None, bert_model='bert-base-cased',max_length=128):
@@ -17,7 +18,8 @@ class NYTREProcessor:
 
     def process(self,dataset):
         datable = DataTable()
-        for text, ner_label,rc_label in zip(dataset['text'], dataset['ner_label'],dataset['rc_label']):
+        print("process data...")
+        for text, ner_label,rc_label in tqdm(zip(dataset['text'], dataset['ner_label'],dataset['rc_label']),total=len(dataset['text'])):
             words, ner_labels, rc_labels, bert_len= self.process_item(text,
                                                                       ner_label,
                                                                       rc_label)
@@ -54,7 +56,7 @@ class NYTREProcessor:
             # +1 for [CLS]
             sta = word_to_bert[ner_label[i][0]][0] + 1
             end = word_to_bert[ner_label[i][1]][0] + 1
-            new_ner_labels += [sta, end, ner_label[i][2]]
+            new_ner_labels += [sta, end, self.ner_vocabulary[ner_label[i][2]]]
 
         return new_ner_labels
 
@@ -65,7 +67,7 @@ class NYTREProcessor:
             # +1 for [CLS]
             e1 = word_to_bert[rc_label[i][0]][0] + 1
             e2 = word_to_bert[rc_label[i ][1]][0] + 1
-            new_rc_labels += [e1, e2, rc_label[i ][2]]
+            new_rc_labels += [e1, e2, self.rc_vocabulary[rc_label[i ][2]]]
 
         return new_rc_labels
 
@@ -97,7 +99,8 @@ def gen_ner_labels(ner_list,l, ner2idx):
     for i in range(0,len(ner_list),3):
         head = ner_list[i]
         tail = ner_list[i+1]
-        n = ner2idx[ner_list[i+2]]
+        # n = ner2idx[ner_list[i+2]]
+        n=int(ner_list[i+2].item())
         labels[head][tail][n] = 1
 
     return labels
@@ -106,10 +109,14 @@ def gen_ner_labels(ner_list,l, ner2idx):
 def gen_rc_labels(rc_list, l, rel2idx):
     labels = torch.FloatTensor(l, l, len(rel2idx)).fill_(0)
     for i in range(0, len(rc_list), 3):
-        e1 = rc_list[i]
-        e2 = rc_list[i + 1]
-        r = rc_list[i + 2]
-        labels[e1][e2][rel2idx[r]] = 1
+        # e1 = rc_list[i]
+        # e2 = rc_list[i + 1]
+        # r=rc_list[i + 2]
+        # labels[e1][e2][rel2idx[r]] = 1
+        e1 = int(rc_list[i].item())
+        e2 = int(rc_list[i + 1].item())
+        r = int(rc_list[i + 2].item())
+        labels[e1][e2][r]= 1
 
     return labels
 

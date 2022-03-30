@@ -13,13 +13,19 @@ class NYTRELoader(Loader):
         for item in data:
             ner_label=[]
             rc_label=[]
+            ner_check=[]
+            rc_check=[]
             text=item["text"].split(" ")
             for label in item["triple_list"]:
                 subject_word_loc=text.index(label[0])
-                relation=label[0]
+                relation=label[1]
                 object_word_loc=text.index(label[2])
-                ner_label.append([subject_word_loc,subject_word_loc,"None"])
-                ner_label.append([object_word_loc,object_word_loc,"None"])
+                if subject_word_loc not in ner_check:
+                    ner_label.append([subject_word_loc, subject_word_loc, "None"])
+                    ner_check+=[subject_word_loc, subject_word_loc, "None"]
+                if object_word_loc not in ner_check:
+                    ner_label.append([object_word_loc,object_word_loc,"None"])
+                    ner_check += [object_word_loc,object_word_loc,"None"]
                 rc_label.append([subject_word_loc,object_word_loc,relation])
             dataset("text",text)
             dataset("ner_label",ner_label)

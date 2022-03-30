@@ -13,6 +13,7 @@ __all__ = [
     "AccuracyMetric",
     "ClassifyFPreRecMetric",
     "SpanFPreRecMetric",
+    "ReMetric",
     "Predictor",
     "NerPredictor",
     "EtPredictor",
@@ -54,7 +55,7 @@ __all__ = [
     "Flair",
     "DenseHNSWFlatIndexer",
     "DenseFlatIndexer",
-    "Bert4REPFN",
+    "Bert4RePFN",
 
     "Vocabulary",
     "DataTable",

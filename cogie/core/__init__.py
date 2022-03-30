@@ -23,6 +23,7 @@ __all__ = [
     "SpanFPreRecMetric",
     "ConfusionMatrixMetric",
     "FBetaMultiLabelMetric",
+    "ReMetric",
 
     "Predictor",
     "NerPredictor",

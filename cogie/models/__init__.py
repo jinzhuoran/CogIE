@@ -52,5 +52,5 @@ __all__ = [
     "DenseHNSWFlatIndexer",
     "DenseFlatIndexer",
 
-    "Bert4REPFN",
+    "Bert4RePFN",
 ]

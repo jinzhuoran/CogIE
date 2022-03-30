@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from transformers import AutoTokenizer, AutoModel, AlbertTokenizer, AlbertModel
-
+from cogie.models import BaseModule
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
@@ -41,15 +41,16 @@ class LinearDropConnect(nn.Linear):
 
 
 class pfn_unit(nn.Module):
-    def __init__(self, args, input_size):
+    def __init__(self, dropout,hidden_size, dropconnect, input_size):
         super(pfn_unit, self).__init__()
-        self.args = args
+        self.dropout=dropout
+        self.hidden_size=hidden_size
+        self.dropconnect=dropconnect
+        self.hidden_transform = LinearDropConnect(self.hidden_size, 5 * self.hidden_size, bias=True,
+                                                  dropout=self.dropconnect)
+        self.input_transform = nn.Linear(input_size, 5 * self.hidden_size, bias=True)
 
-        self.hidden_transform = LinearDropConnect(args.hidden_size, 5 * args.hidden_size, bias=True,
-                                                  dropout=args.dropconnect)
-        self.input_transform = nn.Linear(input_size, 5 * args.hidden_size, bias=True)
-
-        self.transform = nn.Linear(args.hidden_size * 3, args.hidden_size)
+        self.transform = nn.Linear(self.hidden_size * 3, self.hidden_size)
         self.drop_weight_modules = [self.hidden_transform]
 
     def sample_masks(self):
@@ -96,14 +97,16 @@ class pfn_unit(nn.Module):
 
 
 class encoder(nn.Module):
-    def __init__(self, args, input_size):
+    def __init__(self, dropout,hidden_size, dropconnect, input_size):
         super(encoder, self).__init__()
-        self.args = args
-        self.unit = pfn_unit(args, input_size)
+        self.dropout=dropout
+        self.hidden_size=hidden_size
+        self.dropconnect=dropconnect
+        self.unit = pfn_unit(dropout,hidden_size, dropconnect, input_size)
 
     def hidden_init(self, batch_size):
-        h0 = torch.zeros(batch_size, self.args.hidden_size).requires_grad_(False).to(device)
-        c0 = torch.zeros(batch_size, self.args.hidden_size).requires_grad_(False).to(device)
+        h0 = torch.zeros(batch_size, self.hidden_size).requires_grad_(False).to(device)
+        c0 = torch.zeros(batch_size, self.hidden_size).requires_grad_(False).to(device)
         return (h0, c0)
 
     def forward(self, x):
@@ -129,9 +132,10 @@ class encoder(nn.Module):
 
 
 class ner_unit(nn.Module):
-    def __init__(self, args, ner2idx):
+    def __init__(self, hidden_size,dropout, ner2idx):
         super(ner_unit, self).__init__()
-        self.hidden_size = args.hidden_size
+        self.hidden_size = hidden_size
+        self.dropout=dropout
         self.ner2idx = ner2idx
 
         self.hid2hid = nn.Linear(self.hidden_size * 3, self.hidden_size)
@@ -141,7 +145,7 @@ class ner_unit(nn.Module):
         self.n = nn.Linear(self.hidden_size * 2, self.hidden_size)
         self.ln = nn.LayerNorm(self.hidden_size)
 
-        self.dropout = nn.Dropout(args.dropout)
+        self.dropout = nn.Dropout(dropout)
 
     def forward(self, h_ner, h_share, mask):
         length, batch_size, _ = h_ner.size()
@@ -178,11 +182,12 @@ class ner_unit(nn.Module):
 
 
 class re_unit(nn.Module):
-    def __init__(self, args, re2idx):
+    def __init__(self, hidden_size,dropout, re2idx):
         super(re_unit, self).__init__()
-        self.hidden_size = args.hidden_size
+        self.hidden_size = hidden_size
         self.relation_size = len(re2idx)
         self.re2idx = re2idx
+        self.dropout=dropout
 
         self.hid2hid = nn.Linear(self.hidden_size * 3, self.hidden_size)
         self.hid2rel = nn.Linear(self.hidden_size, self.relation_size)
@@ -191,7 +196,7 @@ class re_unit(nn.Module):
         self.r = nn.Linear(self.hidden_size * 2, self.hidden_size)
         self.ln = nn.LayerNorm(self.hidden_size)
 
-        self.dropout = nn.Dropout(args.dropout)
+        self.dropout = nn.Dropout(dropout)
 
     def forward(self, h_re, h_share, mask):
         length, batch_size, _ = h_re.size()
@@ -222,25 +227,34 @@ class re_unit(nn.Module):
         return re
 
 
-class Bert4REPFN(nn.Module):
-    def __init__(self, args, input_size, ner2idx, rel2idx):
-        super(Bert4REPFN, self).__init__()
-        self.args = args
-        self.feature_extractor = encoder(args, input_size)
-
-        self.ner = ner_unit(args, ner2idx)
-        self.re = re_unit(args, rel2idx)
-        self.dropout = nn.Dropout(args.dropout)
-
-        if args.embed_mode == 'albert':
+class Bert4RePFN(BaseModule):
+    def __init__(self,  ner2idx, rel2idx,dropout=0.1,hidden_size=300,embed_mode = 'bert-base-cased',dropconnect=0.1):
+        super(Bert4RePFN, self).__init__()
+        self.ner2idx=ner2idx
+        self.rel2idx= rel2idx
+        self.dropout=dropout
+        self.hidden_size=hidden_size
+        self.embed_mode=embed_mode
+        self.dropconnect=dropconnect
+        if self.embed_mode == 'albert':
             self.tokenizer = AlbertTokenizer.from_pretrained("albert-xxlarge-v1")
             self.bert = AlbertModel.from_pretrained("albert-xxlarge-v1")
-        elif args.embed_mode == 'bert_cased':
+            self.input_size = 4096
+        elif self.embed_mode == 'bert-base-cased':
             self.tokenizer = AutoTokenizer.from_pretrained("bert-base-cased")
             self.bert = AutoModel.from_pretrained("bert-base-cased")
-        elif args.embed_mode == 'scibert':
+            self.input_size = 768
+        elif self.embed_mode == 'scibert':
             self.tokenizer = AutoTokenizer.from_pretrained("allenai/scibert_scivocab_uncased")
             self.bert = AutoModel.from_pretrained("allenai/scibert_scivocab_uncased")
+            self.input_size = 768
+        self.feature_extractor = encoder(self.dropout,self.hidden_size, self.dropconnect,self.input_size)
+
+        self.ner = ner_unit(self.hidden_size,self.dropout, ner2idx)
+        self.re = re_unit(self.hidden_size, self.dropout,rel2idx)
+        self.dropout = nn.Dropout(self.dropout)
+
+
 
     def forward(self, x, mask):
 
@@ -258,4 +272,20 @@ class Bert4REPFN(nn.Module):
         ner_score = self.ner(h_ner, h_share, mask)
         re_core = self.re(h_re, h_share, mask)
         return ner_score, re_core
+
+    def loss(self, batch, loss_function):
+        text=batch[0]
+        ner_label=batch[1].to("cuda")
+        re_label=batch[2].to("cuda")
+        mask=batch[3].to("cuda")
+        ner_pred, re_pred = self.forward(text, mask)
+        loss = loss_function(ner_pred, ner_label, re_pred, re_label)
+        return loss
+
+    def evaluate(self, batch, metrics):
+        pass
+
+    def predict(self, batch):
+        pass
+
 
