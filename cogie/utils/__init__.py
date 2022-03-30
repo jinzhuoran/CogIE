@@ -16,4 +16,7 @@ __all__ = [
     "absolute_path",
     "load_model",
     "module2parallel",
+    "el_load_candidates",
+    "el_print_colorful_text",
+    "el_print_colorful_prediction",
 ]

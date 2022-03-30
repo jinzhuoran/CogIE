@@ -415,3 +415,80 @@ def get_samples_weight(datable, vocabulary):
         else:
             samples_weight.append(1.0)
     return np.array(samples_weight)
+
+def el_load_candidates(entity_catalogue):
+    # load all the 5903527 entities
+    title2id = {}
+    id2title = {}
+    id2text = {}
+    wikipedia_id2local_id = {}
+    local_idx = 0
+    with open(entity_catalogue, "r") as fin:
+        lines = fin.readlines()
+        for line in lines:
+            entity = json.loads(line)
+
+            if "idx" in entity:
+                split = entity["idx"].split("curid=")
+                if len(split) > 1:
+                    wikipedia_id = int(split[-1].strip())
+                else:
+                    wikipedia_id = entity["idx"].strip()
+
+                assert wikipedia_id not in wikipedia_id2local_id
+                wikipedia_id2local_id[wikipedia_id] = local_idx
+
+            title2id[entity["title"]] = local_idx
+            id2title[local_idx] = entity["title"]
+            id2text[local_idx] = entity["text"]
+            local_idx += 1
+    return (
+        title2id,
+        id2title,
+        id2text,
+        wikipedia_id2local_id,
+    )
+
+from colorama import init
+from termcolor import colored
+
+HIGHLIGHTS = [
+    "on_red",
+    "on_green",
+    "on_yellow",
+    "on_blue",
+    "on_magenta",
+    "on_cyan",
+]
+
+
+def el_print_colorful_text(input_sentence, samples):
+    init()  # colorful output
+    msg = ""
+    if samples and (len(samples) > 0):
+        msg += input_sentence[0 : int(samples[0]["start_pos"])]
+        for idx, sample in enumerate(samples):
+            msg += colored(
+                input_sentence[int(sample["start_pos"]) : int(sample["end_pos"])],
+                "grey",
+                HIGHLIGHTS[idx % len(HIGHLIGHTS)],
+            )
+            if idx < len(samples) - 1:
+                msg += input_sentence[
+                    int(sample["end_pos"]) : int(samples[idx + 1]["start_pos"])
+                ]
+            else:
+                msg += input_sentence[int(sample["end_pos"]) :]
+    else:
+        msg = input_sentence
+        print("Failed to identify entity from text:")
+    print("\n" + str(msg) + "\n")
+
+def el_print_colorful_prediction(
+    idx, sample, e_id, e_title, e_text, e_url, show_url=False
+):
+    print(colored(sample["mention"], "grey", HIGHLIGHTS[idx % len(HIGHLIGHTS)]))
+    to_print = "id:{}\ntitle:{}\ntext:{}\n".format(e_id, e_title, e_text[:256])
+    if show_url:
+        to_print += "url:{}\n".format(e_url)
+    print(to_print)
