@@ -126,3 +126,17 @@ class AdaptiveDiceLoss(nn.Module):
 
     def __str__(self):
         return f"Adaptive Dice Loss, smooth:{self.smooth}; alpha:{self.alpha}"
+
+
+class BCEloss(nn.Module):
+    def __init__(self):
+        super(BCEloss, self).__init__()
+        self.loss_ner = nn.BCELoss(reduction='sum')
+        self.loss_re = nn.BCELoss(reduction='sum')
+
+    def forward(self, ner_pred, ner_label, re_pred, re_label):
+        seq_len = ner_pred.size(1)
+        ner_loss = self.loss_ner(ner_pred, ner_label) / seq_len
+        re_loss = self.loss_re(re_pred, re_label) / seq_len
+        loss = ner_loss + re_loss
+        return loss

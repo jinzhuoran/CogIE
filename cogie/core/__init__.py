@@ -32,4 +32,5 @@ __all__ = [
     "FocalLoss",
     "DiceLoss",
     "AdaptiveDiceLoss",
+    "BCEloss"
 ]
