@@ -396,3 +396,28 @@ def prepare_crossencoder_data(
         label_input,
     )
 
+def run_biencoder(biencoder, dataloader, candidate_encoding, top_k=100, indexer=None):
+    biencoder.model.eval()
+    labels = []
+    nns = []
+    all_scores = []
+    for batch in tqdm(dataloader):
+        context_input, _, label_ids = batch
+        with torch.no_grad():
+            if indexer is not None:
+                context_encoding = biencoder.encode_context(context_input).numpy()
+                context_encoding = np.ascontiguousarray(context_encoding)
+                scores, indicies = indexer.search_knn(context_encoding, top_k)
+            else:
+                scores = biencoder.score_candidate(
+                    context_input, None, cand_encs=candidate_encoding  # .to(device)
+                )
+                scores, indicies = scores.topk(top_k)
+                scores = scores.data.numpy()
+                indicies = indicies.data.numpy()
+
+        labels.extend(label_ids.data.numpy())
+        nns.extend(indicies)
+        all_scores.extend(scores)
+    return labels, nns, all_scores
+

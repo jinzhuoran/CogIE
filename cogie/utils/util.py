@@ -483,3 +483,12 @@ def el_print_colorful_text(input_sentence, samples):
         msg = input_sentence
         print("Failed to identify entity from text:")
     print("\n" + str(msg) + "\n")
+
+def el_print_colorful_prediction(
+    idx, sample, e_id, e_title, e_text, e_url, show_url=False
+):
+    print(colored(sample["mention"], "grey", HIGHLIGHTS[idx % len(HIGHLIGHTS)]))
+    to_print = "id:{}\ntitle:{}\ntext:{}\n".format(e_id, e_title, e_text[:256])
+    if show_url:
+        to_print += "url:{}\n".format(e_url)
+    print(to_print)

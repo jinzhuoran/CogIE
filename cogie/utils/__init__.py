@@ -18,4 +18,5 @@ __all__ = [
     "module2parallel",
     "el_load_candidates",
     "el_print_colorful_text",
+    "el_print_colorful_prediction",
 ]

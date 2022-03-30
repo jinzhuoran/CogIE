@@ -82,6 +82,7 @@ faiss_index = "hnsw"
 index_path = "blink_models/faiss_hnsw_index.pkl"
 
 text = "The Russian and Ukrainians delegations have now arrived at the Dolmabahce - President Erdogan’s office on the banks of the Bosphorus here in Istanbul."
+top_k = 10
 
 # Load BiEncoder
 biencoder = BiEncoderRanker(biencoder_params)
@@ -90,8 +91,8 @@ biencoder = BiEncoderRanker(biencoder_params)
 crossencoder = CrossEncoderRanker(crossencoder_params)
 
 # Load Indexer and all the 5903527 entities
-indexer = DenseHNSWFlatIndexer(1)
-indexer.deserialize_from(index_path)
+faiss_indexer = DenseHNSWFlatIndexer(1)
+faiss_indexer.deserialize_from(index_path)
 title2id,id2title,id2text,wikipedia_id2local_id = el_load_candidates(entity_catalogue)
 id2url = {
     v: "https://en.wikipedia.org/wiki?curid=%s" % k
@@ -136,6 +137,20 @@ sampler = SequentialSampler(tensor_data)
 dataloader = DataLoader(
     tensor_data, sampler=sampler, batch_size=biencoder_params["eval_batch_size"]
 )
+labels, nns, scores = run_biencoder(
+    biencoder, dataloader, candidate_encoding=None, top_k=top_k, indexer=faiss_indexer
+)
+idx = 0
+for entity_list, sample in zip(nns, samples):
+    e_id = entity_list[0]
+    e_title = id2title[e_id]
+    e_text = id2text[e_id]
+    e_url = id2url[e_id]
+    el_print_colorful_prediction(
+        idx, sample, e_id, e_title, e_text, e_url, show_url=True
+    )
+    idx += 1
+
 
 
 

@@ -65,6 +65,7 @@ __all__ = [
     "absolute_path",
     "el_load_candidates",
     "el_print_colorful_text",
+    "el_print_colorful_prediction",
 
     "BaseToolkit",
     "TokenizeToolkit",
@@ -77,4 +78,5 @@ __all__ = [
     "ArgumentToolkit",
     "process_mention_data",
     "prepare_crossencoder_data",
+    "run_biencoder",
 ]
