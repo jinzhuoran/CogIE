@@ -54,6 +54,7 @@ __all__ = [
     "Flair",
     "DenseHNSWFlatIndexer",
     "DenseFlatIndexer",
+    "Bert4REPFN",
 
     "Vocabulary",
     "DataTable",

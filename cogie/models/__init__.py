@@ -12,6 +12,7 @@ from .ee import *
 from .ws import *
 from .common import *
 from .el import *
+from .re import *
 
 __all__ = [
     "BaseModule",
@@ -50,4 +51,6 @@ __all__ = [
 
     "DenseHNSWFlatIndexer",
     "DenseFlatIndexer",
+
+    "Bert4REPFN",
 ]

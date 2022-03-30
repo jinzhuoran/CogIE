@@ -27,11 +27,11 @@ test_datable = processor.process(test_data)
 test_dataset = cogie.DataTableSet(test_datable)
 test_sampler = RandomSampler(test_dataset)
 
-#
-# model = cogie.Bert4Ner(len(vocabulary), bert_model='bert-large-cased', embedding_size=1024)
+
+model = cogie.Bert4REPFN(len(vocabulary), bert_model='bert-large-cased', embedding_size=1024)
 # metric = cogie.SpanFPreRecMetric(vocabulary)
 # loss = nn.CrossEntropyLoss(ignore_index=0)
-# optimizer = optim.Adam(model.parameters(), lr=0.000005)
+optimizer = optim.Adam(model.parameters(), lr=0.00002, weight_decay=0)
 # trainer = cogie.Trainer(model,
 #                         train_dataset,
 #                         dev_data=dev_dataset,
