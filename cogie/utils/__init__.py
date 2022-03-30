@@ -17,4 +17,5 @@ __all__ = [
     "load_model",
     "module2parallel",
     "el_load_candidates",
+    "el_print_colorful_text",
 ]

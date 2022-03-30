@@ -64,6 +64,7 @@ __all__ = [
     "download_model",
     "absolute_path",
     "el_load_candidates",
+    "el_print_colorful_text",
 
     "BaseToolkit",
     "TokenizeToolkit",
