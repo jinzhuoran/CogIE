@@ -25,4 +25,5 @@ __all__ = [
     "process_mention_data",
     "prepare_crossencoder_data",
     "run_biencoder",
+    "el_modify",
 ]

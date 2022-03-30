@@ -421,3 +421,22 @@ def run_biencoder(biencoder, dataloader, candidate_encoding, top_k=100, indexer=
         all_scores.extend(scores)
     return labels, nns, all_scores
 
+
+def el_modify(context_input, candidate_input, max_seq_length):
+    new_input = []
+    context_input = context_input.tolist()
+    candidate_input = candidate_input.tolist()
+
+    for i in range(len(context_input)):
+        cur_input = context_input[i]
+        cur_candidate = candidate_input[i]
+        mod_input = []
+        for j in range(len(cur_candidate)):
+            # remove [CLS] token from candidate
+            sample = cur_input + cur_candidate[j][1:]
+            sample = sample[:max_seq_length]
+            mod_input.append(sample)
+
+        new_input.append(mod_input)
+
+    return torch.LongTensor(new_input)

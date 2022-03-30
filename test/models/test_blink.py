@@ -126,19 +126,21 @@ for mention in mentions:
 el_print_colorful_text(text, samples)
 
 # Prepare Biencoder Input
-_,tensor_data = process_mention_data(samples,
+_,biencoder_tensor_data = process_mention_data(samples,
                                      biencoder.tokenizer,
                                      biencoder_params["max_context_length"],
                                      biencoder_params["max_cand_length"],
                                      silent=True,
                                      logger=None,
                                      debug=biencoder_params["debug"],)
-sampler = SequentialSampler(tensor_data)
-dataloader = DataLoader(
-    tensor_data, sampler=sampler, batch_size=biencoder_params["eval_batch_size"]
+biencoder_sampler = SequentialSampler(biencoder_tensor_data)
+biencoder_dataloader = DataLoader(
+    biencoder_tensor_data, sampler=biencoder_sampler, batch_size=biencoder_params["eval_batch_size"]
 )
+
+# Biencoder Prediction
 labels, nns, scores = run_biencoder(
-    biencoder, dataloader, candidate_encoding=None, top_k=top_k, indexer=faiss_indexer
+    biencoder, biencoder_dataloader, candidate_encoding=None, top_k=top_k, indexer=faiss_indexer
 )
 idx = 0
 for entity_list, sample in zip(nns, samples):
@@ -151,6 +153,16 @@ for entity_list, sample in zip(nns, samples):
     )
     idx += 1
 
+# Prepare CrossEncoder Input
+context_input, candidate_input, label_input = prepare_crossencoder_data(
+    crossencoder.tokenizer, samples, labels, nns, id2title, id2text, keep_all=True,
+)
+context_input = el_modify(context_input,candidate_input,crossencoder_params["max_seq_length"])
+crossencoder_tensor_data = TensorDataset(context_input, label_input)
+crossencoder_sampler = SequentialSampler(crossencoder_tensor_data)
+crossencoder_dataloader = DataLoader(
+    crossencoder_tensor_data, sampler=crossencoder_sampler, batch_size=crossencoder_params["eval_batch_size"]
+)
 
 
 
