@@ -9,6 +9,12 @@ from ..base_toolkit import BaseToolkit
 # import blink.predictor as predictor
 from cogie.utils.cognet import CognetServer
 from cogie.utils.util import get_all_forms
+from ...models.el.crossencoder import ENT_START_TAG,ENT_END_TAG,ENT_TITLE_TAG
+from tqdm import tqdm, trange
+from torch.utils.data import DataLoader, TensorDataset
+import torch
+import numpy as np
+import sys
 
 
 class ElToolkit(BaseToolkit):
@@ -48,3 +54,345 @@ class ElToolkit(BaseToolkit):
         #             cognet_link = self.cognet.query("<" + wikidata + ">")
         #     link["cognet_link"] = cognet_link
         # return links
+
+WORLDS = [
+    'american_football',
+    'doctor_who',
+    'fallout',
+    'final_fantasy',
+    'military',
+    'pro_wrestling',
+    'starwars',
+    'world_of_warcraft',
+    'coronation_street',
+    'muppets',
+    'ice_hockey',
+    'elder_scrolls',
+    'forgotten_realms',
+    'lego',
+    'star_trek',
+    'yugioh'
+]
+
+world_to_id = {src : k for k, src in enumerate(WORLDS)}
+
+def select_field(data, key1, key2=None):
+    if key2 is None:
+        return [example[key1] for example in data]
+    else:
+        return [example[key1][key2] for example in data]
+
+# Prepare Biencoder Data
+
+def get_context_representation(
+    sample,
+    tokenizer,
+    max_seq_length,
+    mention_key="mention",
+    context_key="context",
+    ent_start_token=ENT_START_TAG,
+    ent_end_token=ENT_END_TAG,
+):
+    mention_tokens = []
+    if sample[mention_key] and len(sample[mention_key]) > 0:
+        mention_tokens = tokenizer.tokenize(sample[mention_key])
+        mention_tokens = [ent_start_token] + mention_tokens + [ent_end_token]
+
+    context_left = sample[context_key + "_left"]
+    context_right = sample[context_key + "_right"]
+    context_left = tokenizer.tokenize(context_left)
+    context_right = tokenizer.tokenize(context_right)
+
+    left_quota = (max_seq_length - len(mention_tokens)) // 2 - 1
+    right_quota = max_seq_length - len(mention_tokens) - left_quota - 2
+    left_add = len(context_left)
+    right_add = len(context_right)
+    if left_add <= left_quota:
+        if right_add > right_quota:
+            right_quota += left_quota - left_add
+    else:
+        if right_add <= right_quota:
+            left_quota += right_quota - right_add
+
+    context_tokens = (
+        context_left[-left_quota:] + mention_tokens + context_right[:right_quota]
+    )
+
+    context_tokens = ["[CLS]"] + context_tokens + ["[SEP]"]
+    input_ids = tokenizer.convert_tokens_to_ids(context_tokens)
+    padding = [0] * (max_seq_length - len(input_ids))
+    input_ids += padding
+    assert len(input_ids) == max_seq_length
+
+    return {
+        "tokens": context_tokens,
+        "ids": input_ids,
+    }
+
+
+def get_candidate_representation(
+    candidate_desc,
+    tokenizer,
+    max_seq_length,
+    candidate_title=None,
+    title_tag=ENT_TITLE_TAG,
+):
+    cls_token = tokenizer.cls_token
+    sep_token = tokenizer.sep_token
+    cand_tokens = tokenizer.tokenize(candidate_desc)
+    if candidate_title is not None:
+        title_tokens = tokenizer.tokenize(candidate_title)
+        cand_tokens = title_tokens + [title_tag] + cand_tokens
+
+    cand_tokens = cand_tokens[: max_seq_length - 2]
+    cand_tokens = [cls_token] + cand_tokens + [sep_token]
+
+    input_ids = tokenizer.convert_tokens_to_ids(cand_tokens)
+    padding = [0] * (max_seq_length - len(input_ids))
+    input_ids += padding
+    assert len(input_ids) == max_seq_length
+
+    return {
+        "tokens": cand_tokens,
+        "ids": input_ids,
+    }
+
+
+def process_mention_data(
+    samples,
+    tokenizer,
+    max_context_length,
+    max_cand_length,
+    silent,
+    mention_key="mention",
+    context_key="context",
+    label_key="label",
+    title_key='label_title',
+    ent_start_token=ENT_START_TAG,
+    ent_end_token=ENT_END_TAG,
+    title_token=ENT_TITLE_TAG,
+    debug=False,
+    logger=None,
+):
+    processed_samples = []
+
+    if debug:
+        samples = samples[:200]
+
+    if silent:
+        iter_ = samples
+    else:
+        iter_ = tqdm(samples)
+
+    use_world = True
+
+    for idx, sample in enumerate(iter_):
+        context_tokens = get_context_representation(
+            sample,
+            tokenizer,
+            max_context_length,
+            mention_key,
+            context_key,
+            ent_start_token,
+            ent_end_token,
+        )
+
+        label = sample[label_key]
+        title = sample.get(title_key, None)
+        label_tokens = get_candidate_representation(
+            label, tokenizer, max_cand_length, title,
+        )
+        label_idx = int(sample["label_id"])
+
+        record = {
+            "context": context_tokens,
+            "label": label_tokens,
+            "label_idx": [label_idx],
+        }
+
+        if "world" in sample:
+            src = sample["world"]
+            src = world_to_id[src]
+            record["src"] = [src]
+            use_world = True
+        else:
+            use_world = False
+
+        processed_samples.append(record)
+
+    if debug and logger:
+        logger.info("====Processed samples: ====")
+        for sample in processed_samples[:5]:
+            logger.info("Context tokens : " + " ".join(sample["context"]["tokens"]))
+            logger.info(
+                "Context ids : " + " ".join([str(v) for v in sample["context"]["ids"]])
+            )
+            logger.info("Label tokens : " + " ".join(sample["label"]["tokens"]))
+            logger.info(
+                "Label ids : " + " ".join([str(v) for v in sample["label"]["ids"]])
+            )
+            logger.info("Src : %d" % sample["src"][0])
+            logger.info("Label_id : %d" % sample["label_idx"][0])
+
+    context_vecs = torch.tensor(
+        select_field(processed_samples, "context", "ids"), dtype=torch.long,
+    )
+    cand_vecs = torch.tensor(
+        select_field(processed_samples, "label", "ids"), dtype=torch.long,
+    )
+    if use_world:
+        src_vecs = torch.tensor(
+            select_field(processed_samples, "src"), dtype=torch.long,
+        )
+    label_idx = torch.tensor(
+        select_field(processed_samples, "label_idx"), dtype=torch.long,
+    )
+    data = {
+        "context_vecs": context_vecs,
+        "cand_vecs": cand_vecs,
+        "label_idx": label_idx,
+    }
+
+    if use_world:
+        data["src"] = src_vecs
+        tensor_data = TensorDataset(context_vecs, cand_vecs, src_vecs, label_idx)
+    else:
+        tensor_data = TensorDataset(context_vecs, cand_vecs, label_idx)
+    return data, tensor_data
+
+
+# Prepare CrossEncoder Data
+
+
+def prepare_crossencoder_mentions(
+    tokenizer,
+    samples,
+    max_context_length=32,
+    mention_key="mention",
+    context_key="context",
+    ent_start_token=ENT_START_TAG,
+    ent_end_token=ENT_END_TAG,
+):
+
+    context_input_list = []  # samples X 128
+
+    for sample in tqdm(samples):
+        context_tokens = get_context_representation(
+            sample,
+            tokenizer,
+            max_context_length,
+            mention_key,
+            context_key,
+            ent_start_token,
+            ent_end_token,
+        )
+        tokens_ids = context_tokens["ids"]
+        context_input_list.append(tokens_ids)
+
+    context_input_list = np.asarray(context_input_list)
+    return context_input_list
+
+
+def prepare_crossencoder_candidates(
+    tokenizer, labels, nns, id2title, id2text, max_cand_length=128, topk=100
+):
+
+    START_TOKEN = tokenizer.cls_token
+    END_TOKEN = tokenizer.sep_token
+
+    candidate_input_list = []  # samples X topk=10 X 128
+    label_input_list = []  # samples
+    idx = 0
+    for label, nn in zip(labels, nns):
+        candidates = []
+
+        label_id = -1
+        for jdx, candidate_id in enumerate(nn[:topk]):
+
+            if label == candidate_id:
+                label_id = jdx
+
+            rep = get_candidate_representation(
+                id2text[candidate_id],
+                tokenizer,
+                max_cand_length,
+                id2title[candidate_id],
+            )
+            tokens_ids = rep["ids"]
+
+            assert len(tokens_ids) == max_cand_length
+            candidates.append(tokens_ids)
+
+        label_input_list.append(label_id)
+        candidate_input_list.append(candidates)
+
+        idx += 1
+        sys.stdout.write("{}/{} \r".format(idx, len(labels)))
+        sys.stdout.flush()
+
+    label_input_list = np.asarray(label_input_list)
+    candidate_input_list = np.asarray(candidate_input_list)
+
+    return label_input_list, candidate_input_list
+
+
+def filter_crossencoder_tensor_input(
+    context_input_list, label_input_list, candidate_input_list
+):
+    # remove the - 1 : examples for which gold is not among the candidates
+    context_input_list_filtered = [
+        x
+        for x, y, z in zip(context_input_list, candidate_input_list, label_input_list)
+        if z != -1
+    ]
+    label_input_list_filtered = [
+        z
+        for x, y, z in zip(context_input_list, candidate_input_list, label_input_list)
+        if z != -1
+    ]
+    candidate_input_list_filtered = [
+        y
+        for x, y, z in zip(context_input_list, candidate_input_list, label_input_list)
+        if z != -1
+    ]
+    return (
+        context_input_list_filtered,
+        label_input_list_filtered,
+        candidate_input_list_filtered,
+    )
+
+
+def prepare_crossencoder_data(
+    tokenizer, samples, labels, nns, id2title, id2text, keep_all=False
+):
+
+    # encode mentions
+    context_input_list = prepare_crossencoder_mentions(tokenizer, samples)
+
+    # encode candidates (output of biencoder)
+    label_input_list, candidate_input_list = prepare_crossencoder_candidates(
+        tokenizer, labels, nns, id2title, id2text
+    )
+
+    if not keep_all:
+        # remove examples where the gold entity is not among the candidates
+        (
+            context_input_list,
+            label_input_list,
+            candidate_input_list,
+        ) = filter_crossencoder_tensor_input(
+            context_input_list, label_input_list, candidate_input_list
+        )
+    else:
+        label_input_list = [0] * len(label_input_list)
+
+    context_input = torch.LongTensor(context_input_list)
+    label_input = torch.LongTensor(label_input_list)
+    candidate_input = torch.LongTensor(candidate_input_list)
+
+    return (
+        context_input,
+        candidate_input,
+        label_input,
+    )
+

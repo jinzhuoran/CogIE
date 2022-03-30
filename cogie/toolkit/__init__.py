@@ -22,4 +22,6 @@ __all__ = [
     "FnToolkit",
     "ArgumentToolkit",
     "EeToolkit",
+    "process_mention_data",
+    "prepare_crossencoder_data",
 ]

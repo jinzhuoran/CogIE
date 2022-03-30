@@ -1,4 +1,5 @@
 from cogie import *
+from torch.utils.data import DataLoader, SequentialSampler, TensorDataset
 import json
 
 # Configurations
@@ -123,7 +124,19 @@ for mention in mentions:
     samples.append(record)
 el_print_colorful_text(text, samples)
 
-# link the extracted entities to Knowledge Graph
+# Prepare Biencoder Input
+_,tensor_data = process_mention_data(samples,
+                                     biencoder.tokenizer,
+                                     biencoder_params["max_context_length"],
+                                     biencoder_params["max_cand_length"],
+                                     silent=True,
+                                     logger=None,
+                                     debug=biencoder_params["debug"],)
+sampler = SequentialSampler(tensor_data)
+dataloader = DataLoader(
+    tensor_data, sampler=sampler, batch_size=biencoder_params["eval_batch_size"]
+)
+
 
 
 
