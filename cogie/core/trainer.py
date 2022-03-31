@@ -129,9 +129,7 @@ class Trainer:
             self.model, self.optimizer = amp.initialize(model, optimizer, opt_level=self.fp16_opt_level)
 
         self.train_dataloader = DataLoader(dataset=self.train_data, batch_size=self.batch_size,
-                                           # sampler=self.train_sampler,
-                                           shuffle=False,
-                                           drop_last=self.drop_last,
+                                           sampler=self.train_sampler,drop_last=self.drop_last,
                                            collate_fn=self.collate_fn)
 
         self.batch_count = len(self.train_dataloader)
