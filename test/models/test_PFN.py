@@ -33,7 +33,7 @@ test_dataset = cogie.DataTableSet(test_datable)
 test_sampler = RandomSampler(test_dataset)
 
 model = cogie.Bert4RePFN(dropout=0.1,hidden_size=300,ner2idx=ner_vocabulary,rel2idx=rc_vocabulary,embed_mode='bert-base-cased')
-metric = cogie.ReMetric(ner2idx=ner_vocabulary,rel2idx=rc_vocabulary)
+metric = cogie.ReMetric(ner2idx=ner_vocabulary,rel2idx=rc_vocabulary,eval_metric="micro")
 loss = BCEloss()
 optimizer = optim.Adam(model.parameters(), lr=0.00002, weight_decay=0)
 trainer = cogie.Trainer(model,
@@ -44,7 +44,7 @@ trainer = cogie.Trainer(model,
                         loss=loss,
                         optimizer=optimizer,
                         scheduler=None,
-                        metrics=None,
+                        metrics=metric,
                         train_sampler=test_sampler,
                         dev_sampler=test_sampler,
                         collate_fn=processor.collate_fn,

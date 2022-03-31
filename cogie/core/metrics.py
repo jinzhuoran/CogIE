@@ -1324,9 +1324,21 @@ class FBetaMultiLabelMetric(FBetaMeasure):
             return true_negative_sum
 
 class ReMetric:
-    def __init__(self,rel2idx, ner2idx):
+    def __init__(self,rel2idx, ner2idx,eval_metric):
         self.rel2idx=rel2idx
         self.ner2idx=ner2idx
+        self.eval_metric=eval_metric
+
+        self.total_triple_num = [0, 0, 0]
+        self.total_entity_num = [0, 0, 0]
+        if self.eval_metric == "macro":
+            self.total_triple_num *= len(self.rel2idx)
+            self.total_entity_num *= len(self.ner2idx)
+
+        if self.eval_metric == "micro":
+            self.metric = micro(self.rel2idx, self.ner2idx)
+        else:
+            self.metric = macro(self.rel2idx, self.ner2idx)
 
     def f1(self,num):
         results = {}
@@ -1357,50 +1369,36 @@ class ReMetric:
 
         return results
 
-    def evaluate(self,test_batch, args, test_or_dev, device):
-        steps, test_loss = 0, 0
-        total_triple_num = [0, 0, 0]
-        total_entity_num = [0, 0, 0]
-        if args.eval_metric == "macro":
-            total_triple_num *= len(self.rel2idx)
-            total_entity_num *= len(self.ner2idx)
+    def evaluate(self,ner_pred, re_pred, ner_label,re_label):
+        entity_num = self.metric.count_ner_num(ner_pred, ner_label)
+        triple_num = self.metric.count_num(ner_pred, ner_label, re_pred, re_label)
 
-        if args.eval_metric == "micro":
-            metric = micro(self.rel2idx, self.ner2idx)
-        else:
-            metric = macro(self.rel2idx, self.ner2idx)
+        for i in range(len(entity_num)):
+            self.total_entity_num[i] += entity_num[i]
+        for i in range(len(triple_num)):
+            self.total_triple_num[i] += triple_num[i]
 
-        with torch.no_grad():
-            for data in test_batch:
-                steps += 1
-                text = data[0]
-                ner_label = data[1].to(device)
-                re_label = data[2].to(device)
-                mask = data[-1].to(device)
 
-                ner_pred, re_pred = model(text, mask)
-                loss = BCEloss(ner_pred, ner_label, re_pred, re_label)
-                test_loss += loss
+    def get_metric(self, reset: bool = True):
+        triple_result = self.f1(self.total_triple_num)
+        entity_result = self.f1(self.total_entity_num)
+        evaluate_result={}
+        evaluate_result["entity_p"] = entity_result["p"]
+        evaluate_result["entity_r"] = entity_result["r"]
+        evaluate_result["entity_f"] = entity_result["f"]
+        evaluate_result["triple_p"] = triple_result["p"]
+        evaluate_result["triple_r"] = triple_result["r"]
+        evaluate_result["triple_f"] = triple_result["f"]
 
-                entity_num = metric.count_ner_num(ner_pred, ner_label)
-                triple_num = metric.count_num(ner_pred, ner_label, re_pred, re_label)
+        print("entity: p={:.4f}, r={:.4f}, f={:.4f}".format(entity_result["p"], entity_result["r"],
+                                                            entity_result["f"]))
+        print("triple: p={:.4f}, r={:.4f}, f={:.4f}".format(triple_result["p"], triple_result["r"],
+                                                            triple_result["f"]))
+        if reset:
+            self.total_triple_num = [0, 0, 0]
+            self.total_entity_num = [0, 0, 0]
+        return evaluate_result
 
-                for i in range(len(entity_num)):
-                    total_entity_num[i] += entity_num[i]
-                for i in range(len(triple_num)):
-                    total_triple_num[i] += triple_num[i]
-
-            triple_result = self.f1(total_triple_num)
-            entity_result = self.f1(total_entity_num)
-
-            print("------ {} Results ------".format(test_or_dev))
-            print("loss : {:.4f}".format(test_loss / steps))
-            print("entity: p={:.4f}, r={:.4f}, f={:.4f}".format(entity_result["p"], entity_result["r"],
-                                                                entity_result["f"]))
-            print("triple: p={:.4f}, r={:.4f}, f={:.4f}".format(triple_result["p"], triple_result["r"],
-                                                                triple_result["f"]))
-
-        return triple_result, entity_result, test_loss / steps
 
 class micro():
     def __init__(self, rel2idx, ner2idx):

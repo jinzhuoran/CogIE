@@ -283,9 +283,15 @@ class Bert4RePFN(BaseModule):
         return loss
 
     def evaluate(self, batch, metrics):
-        pass
+        ner_label=batch[1].to("cuda")
+        re_label=batch[2].to("cuda")
+        ner_pred, re_pred  = self.predict(batch)
+        metrics.evaluate(ner_pred=ner_pred, re_pred=re_pred, ner_label=ner_label,re_label=re_label)
 
     def predict(self, batch):
-        pass
+        text=batch[0]
+        mask=batch[3].to("cuda")
+        ner_pred, re_pred = self.forward(text, mask)
+        return ner_pred, re_pred
 
 
