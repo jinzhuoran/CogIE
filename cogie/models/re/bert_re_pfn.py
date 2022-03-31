@@ -228,7 +228,15 @@ class re_unit(nn.Module):
 
 
 class Bert4RePFN(BaseModule):
-    def __init__(self,  ner2idx, rel2idx,dropout=0.1,hidden_size=300,embed_mode = 'bert-base-cased',dropconnect=0.1):
+    def __init__(self,
+                 ner2idx,
+                 rel2idx,
+                 dropout=0.1,
+                 hidden_size=300,
+                 embed_mode = 'bert-base-cased',
+                 dropconnect=0.1,
+                 device=torch.device("cuda")
+                 ):
         super(Bert4RePFN, self).__init__()
         self.ner2idx=ner2idx
         self.rel2idx= rel2idx
@@ -236,6 +244,7 @@ class Bert4RePFN(BaseModule):
         self.hidden_size=hidden_size
         self.embed_mode=embed_mode
         self.dropconnect=dropconnect
+        self.device=device
         if self.embed_mode == 'albert':
             self.tokenizer = AlbertTokenizer.from_pretrained("albert-xxlarge-v1")
             self.bert = AlbertModel.from_pretrained("albert-xxlarge-v1")
@@ -275,22 +284,22 @@ class Bert4RePFN(BaseModule):
 
     def loss(self, batch, loss_function):
         text=batch[0]
-        ner_label=batch[1].to("cuda")
-        re_label=batch[2].to("cuda")
-        mask=batch[3].to("cuda")
+        ner_label=batch[1].to(self.device)
+        re_label=batch[2].to(self.device)
+        mask=batch[3].to(self.device)
         ner_pred, re_pred = self.forward(text, mask)
         loss = loss_function(ner_pred, ner_label, re_pred, re_label)
         return loss
 
     def evaluate(self, batch, metrics):
-        ner_label=batch[1].to("cuda")
-        re_label=batch[2].to("cuda")
+        ner_label=batch[1].to(self.device)
+        re_label=batch[2].to(self.device)
         ner_pred, re_pred  = self.predict(batch)
         metrics.evaluate(ner_pred=ner_pred, re_pred=re_pred, ner_label=ner_label,re_label=re_label)
 
     def predict(self, batch):
         text=batch[0]
-        mask=batch[3].to("cuda")
+        mask=batch[3].to(self.device)
         ner_pred, re_pred = self.forward(text, mask)
         return ner_pred, re_pred
 

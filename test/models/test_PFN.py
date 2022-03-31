@@ -8,9 +8,20 @@ from torch.utils.data import RandomSampler
 from cogie.io.loader.re.nyt import NYTRELoader
 from cogie.io.processor.re.nyt import NYTREProcessor
 from cogie.core.loss import BCEloss
+import random
+import numpy as np
 
+def set_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+set_seed(0)
 
-device = torch.device('cuda')
+torch.cuda.set_device(4)
+device = torch.device('cuda:0')
+
 loader =NYTRELoader()
 train_data, dev_data, test_data = loader.load_all('../../../cognlp/data/re/nyt/data')
 processor =NYTREProcessor(path='../../../cognlp/data/re/nyt/data',bert_model='bert-base-cased')
@@ -20,13 +31,13 @@ processor =NYTREProcessor(path='../../../cognlp/data/re/nyt/data',bert_model='be
 ner_vocabulary = load_json('../../../cognlp/data/re/nyt/data/ner2idx.json')
 rc_vocabulary = load_json('../../../cognlp/data/re/nyt/data/rel2idx.json')
 
-# train_datable = processor.process(train_data)
-# train_dataset = cogie.DataTableSet(train_datable)
-# train_sampler = RandomSampler(train_dataset)
+train_datable = processor.process(train_data)
+train_dataset = cogie.DataTableSet(train_datable)
+train_sampler = RandomSampler(train_dataset)
 
-# dev_datable = processor.process(dev_data)
-# dev_dataset = cogie.DataTableSet(dev_datable)
-# dev_sampler = RandomSampler(dev_dataset)
+dev_datable = processor.process(dev_data)
+dev_dataset = cogie.DataTableSet(dev_datable)
+dev_sampler = RandomSampler(dev_dataset)
 
 test_datable = processor.process(test_data)
 test_dataset = cogie.DataTableSet(test_datable)
@@ -37,7 +48,7 @@ metric = cogie.ReMetric(ner2idx=ner_vocabulary,rel2idx=rc_vocabulary,eval_metric
 loss = BCEloss()
 optimizer = optim.Adam(model.parameters(), lr=0.00002, weight_decay=0)
 trainer = cogie.Trainer(model,
-                        test_dataset,
+                        train_dataset,
                         dev_data=test_dataset,
                         n_epochs=100,
                         batch_size=20,
@@ -45,7 +56,7 @@ trainer = cogie.Trainer(model,
                         optimizer=optimizer,
                         scheduler=None,
                         metrics=metric,
-                        train_sampler=test_sampler,
+                        train_sampler=train_sampler,
                         dev_sampler=test_sampler,
                         collate_fn=processor.collate_fn,
                         drop_last=False,
@@ -55,12 +66,12 @@ trainer = cogie.Trainer(model,
                         save_file=None,
                         print_every=None,
                         scheduler_steps=None,
-                        validate_steps=100,
+                        validate_steps=2800,
                         save_steps=None,
                         grad_norm=None,
                         use_tqdm=True,
                         device=device,
-                        device_ids=[0],
+                        device_ids=[4],
                         callbacks=None,
                         metric_key=None,
                         writer_path='../../../cognlp/data/re/nyt/tensorboard',
