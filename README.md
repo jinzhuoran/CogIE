@@ -8,6 +8,12 @@
 - **Intellectuality**.  We build a bridge between raw text and CogNet. CogIE aligns the extracted facts to CogNet and leverages different types of knowledge to enrich results.
 - **Extensibility**.  We contribute not just user-friendly APIs, but an extensible programming framework. Our goal in designing CogIE is to provide a universal toolkit for all sorts of users.
 
+## What's New?
+- Apr 2022: A series of updates are coming soon!
+- Apr 2022: We have supported joint entity and relation extraction according to [PFN](https://github.com/Coopercoppers/PFN).
+- Mar 2022: We have supported entity linking according to [BLINK](https://github.com/facebookresearch/BLINK).
+
+
 ## What's CogIE doing?
 
 ### Named Entity Recognition
