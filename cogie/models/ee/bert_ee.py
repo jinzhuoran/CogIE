@@ -28,7 +28,7 @@ class Bert4EEFunction(BaseFunction):
         tokens_x_2d = torch.LongTensor(tokens_x_2d).to(self.device)
         triggers_y_2d = torch.LongTensor(triggers_y_2d).to(self.device)
         head_indexes_2d = torch.LongTensor(head_indexes_2d).to(self.device)
-        encoded_layers, _ = self.bert(tokens_x_2d)
+        encoded_layers= self.bert(tokens_x_2d).last_hidden_state
         x = encoded_layers
 
         batch_size = tokens_x_2d.shape[0]

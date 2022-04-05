@@ -10,7 +10,8 @@ from torch.utils.data import RandomSampler
 from cogie.io.processor.fn.framenet import FrameNetProcessor
 from cogie.io.loader.fn.framenet import FrameNetLoader
 from cogie import *
-torch.cuda.set_device(4)
+
+torch.cuda.set_device(0)
 device = torch.device('cuda:0')
 
 loader = FrameNetLoader()
@@ -60,7 +61,7 @@ trainer = Trainer(model,
                   collate_fn=train_dataset.to_dict,
                   use_tqdm=True,
                   device=device,
-                  device_ids=[4],
+                  device_ids=[0],
                   callbacks=None,
                   metric_key=None,
                   writer_path='../../../cogie/data/fn/framenet/tensorboard',
