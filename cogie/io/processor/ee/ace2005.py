@@ -103,14 +103,14 @@ class ACE2005Processor:
 
             datable('tokens_x', tokens_x)
             datable('triggers_y', triggers_y)
-            arguments = {
-                'candidates': [
-                    # ex. (5, 6, "entity_type_str"), ...
-                ],
-                'events': {
-                    # ex. (1, 3, "trigger_type_str"): [(5, 6, "argument_role_idx"), ...]
-                },
-            }
+            # arguments = {
+            #     'candidates': [
+            #         # ex. (5, 6, "entity_type_str"), ...
+            #     ],
+            #     'events': {
+            #         # ex. (1, 3, "trigger_type_str"): [(5, 6, "argument_role_idx"), ...]
+            #     },
+            # }
             datable('arguments', arguments)
             datable('head_indexes', head_indexes)
             datable('words', words)
