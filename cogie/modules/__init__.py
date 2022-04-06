@@ -12,4 +12,6 @@ __all__ = [
     "CNN",
     "LSTM",
     "BalancedDataParallel",
+    "Biaffine",
+    "MLP",
 ]

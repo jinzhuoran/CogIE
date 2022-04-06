@@ -21,6 +21,14 @@ __all__ = [
     "Tester",
     "Trainer",
 
+    "ConditionalRandomField",
+    "FeedForwardNetwork",
+    "CNN",
+    "LSTM",
+    "BalancedDataParallel",
+    "Biaffine",
+    "MLP",
+
     "BaseModule",
     "BaseFunction",
     "Bert4Et",
