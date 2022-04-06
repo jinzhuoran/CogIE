@@ -2,7 +2,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from transformers import AutoTokenizer, AutoModel, AlbertTokenizer, AlbertModel
+
 from cogie.models import BaseModule
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
@@ -41,11 +43,11 @@ class LinearDropConnect(nn.Linear):
 
 
 class pfn_unit(nn.Module):
-    def __init__(self, dropout,hidden_size, dropconnect, input_size):
+    def __init__(self, dropout, hidden_size, dropconnect, input_size):
         super(pfn_unit, self).__init__()
-        self.dropout=dropout
-        self.hidden_size=hidden_size
-        self.dropconnect=dropconnect
+        self.dropout = dropout
+        self.hidden_size = hidden_size
+        self.dropconnect = dropconnect
         self.hidden_transform = LinearDropConnect(self.hidden_size, 5 * self.hidden_size, bias=True,
                                                   dropout=self.dropconnect)
         self.input_transform = nn.Linear(input_size, 5 * self.hidden_size, bias=True)
@@ -97,12 +99,12 @@ class pfn_unit(nn.Module):
 
 
 class encoder(nn.Module):
-    def __init__(self, dropout,hidden_size, dropconnect, input_size):
+    def __init__(self, dropout, hidden_size, dropconnect, input_size):
         super(encoder, self).__init__()
-        self.dropout=dropout
-        self.hidden_size=hidden_size
-        self.dropconnect=dropconnect
-        self.unit = pfn_unit(dropout,hidden_size, dropconnect, input_size)
+        self.dropout = dropout
+        self.hidden_size = hidden_size
+        self.dropconnect = dropconnect
+        self.unit = pfn_unit(dropout, hidden_size, dropconnect, input_size)
 
     def hidden_init(self, batch_size):
         h0 = torch.zeros(batch_size, self.hidden_size).requires_grad_(False).to(device)
@@ -132,10 +134,10 @@ class encoder(nn.Module):
 
 
 class ner_unit(nn.Module):
-    def __init__(self, hidden_size,dropout, ner2idx):
+    def __init__(self, hidden_size, dropout, ner2idx):
         super(ner_unit, self).__init__()
         self.hidden_size = hidden_size
-        self.dropout=dropout
+        self.dropout = dropout
         self.ner2idx = ner2idx
 
         self.hid2hid = nn.Linear(self.hidden_size * 3, self.hidden_size)
@@ -182,12 +184,12 @@ class ner_unit(nn.Module):
 
 
 class re_unit(nn.Module):
-    def __init__(self, hidden_size,dropout, re2idx):
+    def __init__(self, hidden_size, dropout, re2idx):
         super(re_unit, self).__init__()
         self.hidden_size = hidden_size
         self.relation_size = len(re2idx)
         self.re2idx = re2idx
-        self.dropout=dropout
+        self.dropout = dropout
 
         self.hid2hid = nn.Linear(self.hidden_size * 3, self.hidden_size)
         self.hid2rel = nn.Linear(self.hidden_size, self.relation_size)
@@ -227,24 +229,24 @@ class re_unit(nn.Module):
         return re
 
 
-class Bert4RePFN(BaseModule):
+class PFN(BaseModule):
     def __init__(self,
                  ner2idx,
                  rel2idx,
                  dropout=0.1,
                  hidden_size=300,
-                 embed_mode = 'bert-base-cased',
+                 embed_mode='bert-base-cased',
                  dropconnect=0.1,
                  device=torch.device("cuda")
                  ):
         super(Bert4RePFN, self).__init__()
-        self.ner2idx=ner2idx
-        self.rel2idx= rel2idx
-        self.dropout=dropout
-        self.hidden_size=hidden_size
-        self.embed_mode=embed_mode
-        self.dropconnect=dropconnect
-        self.device=device
+        self.ner2idx = ner2idx
+        self.rel2idx = rel2idx
+        self.dropout = dropout
+        self.hidden_size = hidden_size
+        self.embed_mode = embed_mode
+        self.dropconnect = dropconnect
+        self.device = device
         if self.embed_mode == 'albert':
             self.tokenizer = AlbertTokenizer.from_pretrained("albert-xxlarge-v1")
             self.bert = AlbertModel.from_pretrained("albert-xxlarge-v1")
@@ -257,13 +259,11 @@ class Bert4RePFN(BaseModule):
             self.tokenizer = AutoTokenizer.from_pretrained("allenai/scibert_scivocab_uncased")
             self.bert = AutoModel.from_pretrained("allenai/scibert_scivocab_uncased")
             self.input_size = 768
-        self.feature_extractor = encoder(self.dropout,self.hidden_size, self.dropconnect,self.input_size)
+        self.feature_extractor = encoder(self.dropout, self.hidden_size, self.dropconnect, self.input_size)
 
-        self.ner = ner_unit(self.hidden_size,self.dropout, ner2idx)
-        self.re = re_unit(self.hidden_size, self.dropout,rel2idx)
+        self.ner = ner_unit(self.hidden_size, self.dropout, ner2idx)
+        self.re = re_unit(self.hidden_size, self.dropout, rel2idx)
         self.dropout = nn.Dropout(self.dropout)
-
-
 
     def forward(self, x, mask):
 
@@ -283,24 +283,22 @@ class Bert4RePFN(BaseModule):
         return ner_score, re_core
 
     def loss(self, batch, loss_function):
-        text=batch[0]
-        ner_label=batch[1].to(self.device)
-        re_label=batch[2].to(self.device)
-        mask=batch[3].to(self.device)
+        text = batch[0]
+        ner_label = batch[1].to(self.device)
+        re_label = batch[2].to(self.device)
+        mask = batch[3].to(self.device)
         ner_pred, re_pred = self.forward(text, mask)
         loss = loss_function(ner_pred, ner_label, re_pred, re_label)
         return loss
 
     def evaluate(self, batch, metrics):
-        ner_label=batch[1].to(self.device)
-        re_label=batch[2].to(self.device)
-        ner_pred, re_pred  = self.predict(batch)
-        metrics.evaluate(ner_pred=ner_pred, re_pred=re_pred, ner_label=ner_label,re_label=re_label)
+        ner_label = batch[1].to(self.device)
+        re_label = batch[2].to(self.device)
+        ner_pred, re_pred = self.predict(batch)
+        metrics.evaluate(ner_pred=ner_pred, re_pred=re_pred, ner_label=ner_label, re_label=re_label)
 
     def predict(self, batch):
-        text=batch[0]
-        mask=batch[3].to(self.device)
+        text = batch[0]
+        mask = batch[3].to(self.device)
         ner_pred, re_pred = self.forward(text, mask)
         return ner_pred, re_pred
-
-

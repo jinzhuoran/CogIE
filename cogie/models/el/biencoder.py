@@ -122,7 +122,7 @@ class BiEncoderRanker(torch.nn.Module):
             token_idx_ctxt, segment_idx_ctxt, mask_ctxt, None, None, None
         )
 
-        # Candidate encoding is given, do not need to re-compute
+        # Candidate encoding is given, do not need to spo-compute
         # Directly return the score of context encoding and candidate encoding
         if cand_encs is not None:
             return embedding_ctxt.mm(cand_encs.t())

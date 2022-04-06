@@ -64,7 +64,7 @@ words = tokenize_toolkit.run('Ontario is the most populous province in Canada.')
 ner_toolkit = cogie.NerToolkit(task='ner', language='english', corpus='trex')
 ner_result = ner_toolkit.run(words)
 # relation extraction
-re_toolkit = cogie.ReToolkit(task='rc', language='english', corpus='trex')
+re_toolkit = cogie.ReToolkit(task='re', language='english', corpus='trex')
 re_result = re_toolkit.run(words, ner_result)
 
 token_toolkit = cogie.TokenizeToolkit(task='ws', language='english', corpus=None)

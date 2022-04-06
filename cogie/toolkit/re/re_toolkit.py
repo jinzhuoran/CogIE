@@ -10,7 +10,7 @@ import torch
 
 
 class ReToolkit(BaseToolkit):
-    def __init__(self, task='rc', language='english', corpus=None):
+    def __init__(self, task='re', language='english', corpus=None):
         config = load_configuration()
         if language == 'chinese':
             if corpus is None:

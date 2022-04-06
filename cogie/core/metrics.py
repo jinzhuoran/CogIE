@@ -4,25 +4,24 @@
 @Desc: 
 """
 import inspect
+import numpy as np
+import re
+import torch
 import warnings
 from abc import abstractmethod
 from collections import defaultdict
-from typing import Union
 from copy import deepcopy
-import re
-
-import numpy as np
-import torch
+from typing import List, Optional, Iterable
+from typing import Union
 
 from cogie.utils import Vocabulary
+from .utils import ConfusionMatrix
 from .utils import _CheckError
 from .utils import _CheckRes
 from .utils import _build_args
 from .utils import _check_arg_dict_list
 from .utils import _get_func_signature
 from .utils import seq_len_to_mask
-from .utils import ConfusionMatrix
-from typing import List, Optional, Iterable
 
 
 class MetricBase(object):
@@ -1097,10 +1096,10 @@ class FBetaMeasure(MetricBase):
         self._true_sum: Union[None, torch.Tensor] = None
 
     def evaluate(
-        self,
-        predictions: torch.Tensor,
-        gold_labels: torch.Tensor,
-        mask: Optional[torch.BoolTensor] = None,
+            self,
+            predictions: torch.Tensor,
+            gold_labels: torch.Tensor,
+            mask: Optional[torch.BoolTensor] = None,
     ):
 
         predictions, gold_labels, mask = self.detach_tensors(predictions, gold_labels, mask)
@@ -1219,7 +1218,7 @@ class FBetaMeasure(MetricBase):
             return None
         else:
             true_negative_sum = (
-                self._total_sum - self._pred_sum - self._true_sum + self._true_positive_sum
+                    self._total_sum - self._pred_sum - self._true_sum + self._true_positive_sum
             )
             return true_negative_sum
 
@@ -1237,20 +1236,20 @@ def _prf_divide(numerator, denominator):
 
 class FBetaMultiLabelMetric(FBetaMeasure):
     def __init__(
-        self,
-        beta: float = 1.0,
-        average: str = None,
-        labels: List[int] = None,
-        threshold: float = 0.5,
+            self,
+            beta: float = 1.0,
+            average: str = None,
+            labels: List[int] = None,
+            threshold: float = 0.5,
     ) -> None:
         super().__init__(beta, average, labels)
         self._threshold = threshold
 
     def evaluate(
-        self,
-        predictions: torch.Tensor,
-        gold_labels: torch.Tensor,
-        mask: Optional[torch.BoolTensor] = None,
+            self,
+            predictions: torch.Tensor,
+            gold_labels: torch.Tensor,
+            mask: Optional[torch.BoolTensor] = None,
     ):
         predictions, gold_labels, mask = self.detach_tensors(predictions, gold_labels, mask)
 
@@ -1275,8 +1274,8 @@ class FBetaMultiLabelMetric(FBetaMeasure):
 
         class_indices = (
             torch.arange(num_classes, device=predictions.device)
-            .unsqueeze(0)
-            .repeat(gold_labels.size(0), 1)
+                .unsqueeze(0)
+                .repeat(gold_labels.size(0), 1)
         )
         true_positives = (gold_labels * threshold_predictions).bool() & mask & pred_mask
         true_positives_bins = class_indices[true_positives]
@@ -1316,18 +1315,19 @@ class FBetaMultiLabelMetric(FBetaMeasure):
             return None
         else:
             true_negative_sum = (
-                self._total_sum[0] / self._true_positive_sum.size(0)
-                - self._pred_sum
-                - self._true_sum
-                + self._true_positive_sum
+                    self._total_sum[0] / self._true_positive_sum.size(0)
+                    - self._pred_sum
+                    - self._true_sum
+                    + self._true_positive_sum
             )
             return true_negative_sum
 
-class ReMetric:
-    def __init__(self,rel2idx, ner2idx,eval_metric):
-        self.rel2idx=rel2idx
-        self.ner2idx=ner2idx
-        self.eval_metric=eval_metric
+
+class SPOMetric:
+    def __init__(self, rel2idx, ner2idx, eval_metric):
+        self.rel2idx = rel2idx
+        self.ner2idx = ner2idx
+        self.eval_metric = eval_metric
 
         self.total_triple_num = [0, 0, 0]
         self.total_entity_num = [0, 0, 0]
@@ -1340,7 +1340,7 @@ class ReMetric:
         else:
             self.metric = macro(self.rel2idx, self.ner2idx)
 
-    def f1(self,num):
+    def f1(self, num):
         results = {}
         results["p"], results["r"], results["f"] = 0, 0, 0
         type_num = len(num) / 3
@@ -1369,7 +1369,7 @@ class ReMetric:
 
         return results
 
-    def evaluate(self,ner_pred, re_pred, ner_label,re_label):
+    def evaluate(self, ner_pred, re_pred, ner_label, re_label):
         entity_num = self.metric.count_ner_num(ner_pred, ner_label)
         triple_num = self.metric.count_num(ner_pred, ner_label, re_pred, re_label)
 
@@ -1378,11 +1378,10 @@ class ReMetric:
         for i in range(len(triple_num)):
             self.total_triple_num[i] += triple_num[i]
 
-
     def get_metric(self, reset: bool = True):
         triple_result = self.f1(self.total_triple_num)
         entity_result = self.f1(self.total_entity_num)
-        evaluate_result={}
+        evaluate_result = {}
         evaluate_result["entity_p"] = entity_result["p"]
         evaluate_result["entity_r"] = entity_result["r"]
         evaluate_result["entity_f"] = entity_result["f"]
@@ -1399,144 +1398,137 @@ class ReMetric:
             self.total_entity_num = [0, 0, 0]
         return evaluate_result
 
+    class micro():
+        def __init__(self, rel2idx, ner2idx):
+            self.rel2idx = rel2idx
+            self.ner2idx = ner2idx
 
-class micro():
-    def __init__(self, rel2idx, ner2idx):
-        self.rel2idx = rel2idx
-        self.ner2idx = ner2idx
+        def get_right_entity_pair(self, ner_pred, ner_label):
+            # ner_label : seq_len * seq_len * batch_size * entity_type
 
+            ret = ner_label * ner_pred
+            ret = torch.sum(ret, dim=1)
+            ret = torch.sum(ret, dim=-1)
+            ret = torch.where(ret > 0, torch.ones_like(ret), torch.zeros_like(ret))
 
-    def get_right_entity_pair(self, ner_pred, ner_label):
-        # ner_label : seq_len * seq_len * batch_size * entity_type
+            seq_len = ner_label.size(0)
+            e1 = ret.unsqueeze(0).repeat(seq_len, 1, 1)
+            e2 = ret.unsqueeze(1).repeat(1, seq_len, 1)
+            ret = e1 * e2
+            return ret
 
-        ret = ner_label * ner_pred
-        ret = torch.sum(ret, dim=1)
-        ret = torch.sum(ret, dim=-1)
-        ret = torch.where(ret > 0, torch.ones_like(ret), torch.zeros_like(ret))
+        def get_trip_pred(self, ner_pred, re_pred):
+            ner_mask = torch.sum(ner_pred, dim=1).float()
+            ner_mask = torch.sum(ner_mask, dim=-1).float()
+            ner_mask = torch.where(ner_mask > 0, torch.ones_like(ner_mask), torch.zeros_like(ner_mask))
 
-        seq_len = ner_label.size(0)
-        e1 = ret.unsqueeze(0).repeat(seq_len, 1, 1)
-        e2 = ret.unsqueeze(1).repeat(1, seq_len, 1)
-        ret = e1 * e2
-        return ret
+            seq_len = ner_mask.size(0)
+            e1 = ner_mask.unsqueeze(0).repeat(seq_len, 1, 1)
+            e2 = ner_mask.unsqueeze(1).repeat(1, seq_len, 1)
+            ner_mask = e1 * e2
 
-    def get_trip_pred(self, ner_pred, re_pred):
+            ner_mask = ner_mask.unsqueeze(-1).repeat(1, 1, 1, len(self.rel2idx))
+            complete_re_pred = re_pred * ner_mask
+            return complete_re_pred
 
-        ner_mask = torch.sum(ner_pred, dim=1).float()
-        ner_mask = torch.sum(ner_mask, dim=-1).float()
-        ner_mask = torch.where(ner_mask > 0, torch.ones_like(ner_mask), torch.zeros_like(ner_mask))
+        def count_num(self, ner_pred, ner_label, re_pred, re_label):
+            ner_pred = torch.where(ner_pred >= 0.5, torch.ones_like(ner_pred),
+                                   torch.zeros_like(ner_pred))
+            re_pred = torch.where(re_pred >= 0.5, torch.ones_like(re_pred),
+                                  torch.zeros_like(re_pred))
+            gold_num = re_label.sum().item()
 
-        seq_len = ner_mask.size(0)
-        e1 = ner_mask.unsqueeze(0).repeat(seq_len, 1, 1)
-        e2 = ner_mask.unsqueeze(1).repeat(1, seq_len, 1)
-        ner_mask = e1 * e2
+            re_pred = self.get_trip_pred(ner_pred, re_pred)
+            pred_num = re_pred.sum().item()
 
-        ner_mask = ner_mask.unsqueeze(-1).repeat(1, 1, 1, len(self.rel2idx))
-        complete_re_pred = re_pred * ner_mask
-        return complete_re_pred
-
-    def count_num(self, ner_pred, ner_label, re_pred, re_label):
-        ner_pred = torch.where(ner_pred>=0.5, torch.ones_like(ner_pred),
-                                    torch.zeros_like(ner_pred))
-        re_pred = torch.where(re_pred>=0.5, torch.ones_like(re_pred),
-                                    torch.zeros_like(re_pred))
-        gold_num = re_label.sum().item()
-
-        re_pred = self.get_trip_pred(ner_pred, re_pred)
-        pred_num = re_pred.sum().item()
-
-        re_right = re_pred + re_label
-        re_right = torch.where(re_right == 2, torch.ones_like(re_right), torch.zeros_like(re_right))
-
-        ner_right_mask = self.get_right_entity_pair(ner_pred, ner_label)
-        ner_right_mask = ner_right_mask.unsqueeze(-1).repeat(1, 1, 1, re_label.size(-1))
-        re_right = re_right * ner_right_mask
-        right_num = re_right.sum().item()
-        return [pred_num, gold_num, right_num]
-
-
-    def count_ner_num(self, ner_pred, ner_label):
-        ner_pred = torch.where(ner_pred>=0.5, torch.ones_like(ner_pred),
-                                    torch.zeros_like(ner_pred))
-        ner_pred_num = ner_pred.sum().item()
-        ner_gold_num = ner_label.sum().item()
-
-        ner_right = ner_pred * ner_label
-        ner_right_num = ner_right.sum().item()
-        return [ner_pred_num, ner_gold_num, ner_right_num]
-
-
-class macro():
-    def __init__(self, rel2idx, ner2idx):
-        self.rel2idx = rel2idx
-        self.ner2idx = ner2idx
-
-    def get_right_entity_pair(self, ner_pred, ner_label):
-        # ner_label : seq_len * seq_len * batch_size * entity_type
-
-        ret = ner_label * ner_pred
-        ret = torch.sum(ret, dim=1)
-        ret = torch.sum(ret, dim=-1)
-        ret = torch.where(ret > 0, torch.ones_like(ret), torch.zeros_like(ret))
-
-        seq_len = ner_label.size(0)
-        e1 = ret.unsqueeze(0).repeat(seq_len, 1, 1)
-        e2 = ret.unsqueeze(1).repeat(1, seq_len, 1)
-        ret = e1 * e2
-        return ret
-
-    def get_trip_pred(self, ner_pred, re_pred):
-
-        ner_mask = torch.sum(ner_pred, dim=1).float()
-        ner_mask = torch.sum(ner_mask, dim=-1).float()
-        ner_mask = torch.where(ner_mask > 0, torch.ones_like(ner_mask), torch.zeros_like(ner_mask))
-
-        seq_len = ner_mask.size(0)
-        e1 = ner_mask.unsqueeze(0).repeat(seq_len, 1, 1)
-        e2 = ner_mask.unsqueeze(1).repeat(1, seq_len, 1)
-        ner_mask = e1 * e2
-
-        complete_re_pred = re_pred * ner_mask
-        return complete_re_pred
-
-    def count_num(self, ner_pred, ner_label, re_pred, re_label):
-        ner_pred = torch.where(ner_pred>=0.5, torch.ones_like(ner_pred),
-                                    torch.zeros_like(ner_pred))
-        re_pred = torch.where(re_pred>=0.5, torch.ones_like(re_pred),
-                                    torch.zeros_like(re_pred))
-        triple_num_list = []
-        for i in range(len(self.rel2idx)):
-            re_label_single = re_label[:, :, :, i]
-            gold_num = re_label_single.sum().item()
-
-            re_pred_single = self.get_trip_pred(ner_pred, re_pred[:, :, :, i])
-            pred_num = re_pred_single.sum().item()
-
-            re_right = re_pred_single + re_label_single
+            re_right = re_pred + re_label
             re_right = torch.where(re_right == 2, torch.ones_like(re_right), torch.zeros_like(re_right))
 
             ner_right_mask = self.get_right_entity_pair(ner_pred, ner_label)
+            ner_right_mask = ner_right_mask.unsqueeze(-1).repeat(1, 1, 1, re_label.size(-1))
             re_right = re_right * ner_right_mask
             right_num = re_right.sum().item()
-            triple_num_list += [pred_num, gold_num, right_num]
+            return [pred_num, gold_num, right_num]
 
-        return triple_num_list
+        def count_ner_num(self, ner_pred, ner_label):
+            ner_pred = torch.where(ner_pred >= 0.5, torch.ones_like(ner_pred),
+                                   torch.zeros_like(ner_pred))
+            ner_pred_num = ner_pred.sum().item()
+            ner_gold_num = ner_label.sum().item()
 
-
-    def count_ner_num(self, ner_pred, ner_label):
-        ner_pred = torch.where(ner_pred>=0.5, torch.ones_like(ner_pred),
-                                    torch.zeros_like(ner_pred))
-        entity_num_list = []
-        for i in range(len(self.ner2idx)):
-            ner_pred_single = ner_pred[:, :, :, i]
-            ner_label_single = ner_label[:, :, :, i]
-
-            ner_pred_num = ner_pred_single.sum().item()
-            ner_gold_num = ner_label_single.sum().item()
-
-            ner_right = ner_pred_single * ner_label_single
+            ner_right = ner_pred * ner_label
             ner_right_num = ner_right.sum().item()
-            entity_num_list += [ner_pred_num, ner_gold_num, ner_right_num]
+            return [ner_pred_num, ner_gold_num, ner_right_num]
 
-        return entity_num_list
+    class macro():
+        def __init__(self, rel2idx, ner2idx):
+            self.rel2idx = rel2idx
+            self.ner2idx = ner2idx
 
+        def get_right_entity_pair(self, ner_pred, ner_label):
+            # ner_label : seq_len * seq_len * batch_size * entity_type
+
+            ret = ner_label * ner_pred
+            ret = torch.sum(ret, dim=1)
+            ret = torch.sum(ret, dim=-1)
+            ret = torch.where(ret > 0, torch.ones_like(ret), torch.zeros_like(ret))
+
+            seq_len = ner_label.size(0)
+            e1 = ret.unsqueeze(0).repeat(seq_len, 1, 1)
+            e2 = ret.unsqueeze(1).repeat(1, seq_len, 1)
+            ret = e1 * e2
+            return ret
+
+        def get_trip_pred(self, ner_pred, re_pred):
+
+            ner_mask = torch.sum(ner_pred, dim=1).float()
+            ner_mask = torch.sum(ner_mask, dim=-1).float()
+            ner_mask = torch.where(ner_mask > 0, torch.ones_like(ner_mask), torch.zeros_like(ner_mask))
+
+            seq_len = ner_mask.size(0)
+            e1 = ner_mask.unsqueeze(0).repeat(seq_len, 1, 1)
+            e2 = ner_mask.unsqueeze(1).repeat(1, seq_len, 1)
+            ner_mask = e1 * e2
+
+            complete_re_pred = re_pred * ner_mask
+            return complete_re_pred
+
+        def count_num(self, ner_pred, ner_label, re_pred, re_label):
+            ner_pred = torch.where(ner_pred >= 0.5, torch.ones_like(ner_pred),
+                                   torch.zeros_like(ner_pred))
+            re_pred = torch.where(re_pred >= 0.5, torch.ones_like(re_pred),
+                                  torch.zeros_like(re_pred))
+            triple_num_list = []
+            for i in range(len(self.rel2idx)):
+                re_label_single = re_label[:, :, :, i]
+                gold_num = re_label_single.sum().item()
+
+                re_pred_single = self.get_trip_pred(ner_pred, re_pred[:, :, :, i])
+                pred_num = re_pred_single.sum().item()
+
+                re_right = re_pred_single + re_label_single
+                re_right = torch.where(re_right == 2, torch.ones_like(re_right), torch.zeros_like(re_right))
+
+                ner_right_mask = self.get_right_entity_pair(ner_pred, ner_label)
+                re_right = re_right * ner_right_mask
+                right_num = re_right.sum().item()
+                triple_num_list += [pred_num, gold_num, right_num]
+
+            return triple_num_list
+
+        def count_ner_num(self, ner_pred, ner_label):
+            ner_pred = torch.where(ner_pred >= 0.5, torch.ones_like(ner_pred),
+                                   torch.zeros_like(ner_pred))
+            entity_num_list = []
+            for i in range(len(self.ner2idx)):
+                ner_pred_single = ner_pred[:, :, :, i]
+                ner_label_single = ner_label[:, :, :, i]
+
+                ner_pred_num = ner_pred_single.sum().item()
+                ner_gold_num = ner_label_single.sum().item()
+
+                ner_right = ner_pred_single * ner_label_single
+                ner_right_num = ner_right.sum().item()
+                entity_num_list += [ner_pred_num, ner_gold_num, ner_right_num]
+
+            return entity_num_list

@@ -6,13 +6,13 @@
 from .base import *
 from .et import *
 from .ner import *
-from .rc import *
+from .re import *
 from .fn import *
 from .ee import *
 from .ws import *
 from .common import *
 from .el import *
-from .re import *
+from .spo import *
 
 __all__ = [
     "BaseModule",
@@ -52,5 +52,5 @@ __all__ = [
     "DenseHNSWFlatIndexer",
     "DenseFlatIndexer",
 
-    "Bert4RePFN",
+    "PFN",
 ]
