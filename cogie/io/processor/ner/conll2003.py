@@ -218,7 +218,7 @@ def process_w2ner(sentence, labels, tokenizer, vocab, max_seq_length):
         return new_data
 
 
-    dis_mat = np.zeros((max_tok,max_pie),dtype=np.long)
+    dis_mat = np.zeros((max_tok,max_tok),dtype=np.long)
     _dist_inputs = fill(_dist_inputs,dis_mat)
     labels_mat = np.zeros((max_tok,max_pie),dtype=np.long)
     _grid_labels = fill(_grid_labels,labels_mat)
