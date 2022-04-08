@@ -235,9 +235,10 @@ class W2NER(nn.Module):
         word_reps, _ = torch.max(_bert_embs, dim=2)
 
         word_reps = self.dropout(word_reps)
-        packed_embs = pack_padded_sequence(word_reps, sent_length.cpu(), batch_first=True, enforce_sorted=False)
-        packed_outs, (hidden, _) = self.encoder(packed_embs)
-        word_reps, _ = pad_packed_sequence(packed_outs, batch_first=True, total_length=sent_length.max())
+        word_reps,(hidden,_) = self.encoder(word_reps)
+        # packed_embs = pack_padded_sequence(word_reps, sent_length.cpu(), batch_first=True, enforce_sorted=False)
+        # packed_outs, (hidden, _) = self.encoder(packed_embs)
+        # word_reps, _ = pad_packed_sequence(packed_outs, batch_first=True, total_length=sent_length.max())
 
         cln = self.cln(word_reps.unsqueeze(2), word_reps)
 
@@ -265,4 +266,23 @@ class W2NER(nn.Module):
         grid_mask2d = grid_mask2d.clone()
         loss = loss_function(outputs[grid_mask2d],grid_labels[grid_mask2d])
         return loss
+
+    def evaluate(
+            self,
+            batch=None,
+            metrics=None,
+    ):
+        batch = [data.cuda() for data in batch]
+        bert_inputs, attention_masks, grid_labels, grid_mask2d, pieces2word, dist_inputs, sent_length = batch
+        outputs =self.forward(bert_inputs, attention_masks,grid_mask2d, dist_inputs,pieces2word, sent_length)
+        grid_mask2d = grid_mask2d.clone()
+        outputs = torch.argmax(outputs, -1)
+        grid_labels = grid_labels[grid_mask2d].contiguous().view(-1)
+        outputs = outputs[grid_mask2d].contiguous().view(-1)
+
+
+        input_ids, attention_mask, segment_ids, valid_masks, label_ids, label_masks = batch
+        prediction, valid_len = self.predict(batch)
+        metrics.evaluate(prediction, label_ids, valid_len)
+
 
