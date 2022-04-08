@@ -3,6 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from transformers import AutoModel
+from sklearn.metrics import precision_recall_fscore_support, f1_score
+import prettytable as pt
 
 
 class LayerNorm(nn.Module):
@@ -267,22 +269,49 @@ class W2NER(nn.Module):
         loss = loss_function(outputs[grid_mask2d],grid_labels[grid_mask2d])
         return loss
 
-    def evaluate(
-            self,
-            batch=None,
-            metrics=None,
-    ):
-        batch = [data.cuda() for data in batch]
-        bert_inputs, attention_masks, grid_labels, grid_mask2d, pieces2word, dist_inputs, sent_length = batch
-        outputs =self.forward(bert_inputs, attention_masks,grid_mask2d, dist_inputs,pieces2word, sent_length)
-        grid_mask2d = grid_mask2d.clone()
-        outputs = torch.argmax(outputs, -1)
-        grid_labels = grid_labels[grid_mask2d].contiguous().view(-1)
-        outputs = outputs[grid_mask2d].contiguous().view(-1)
+    def evaluate(self,progress):
+        label_result = []
+        pred_result = []
+        for step,batch in progress:
+            batch = [data.cuda() for data in batch]
+            bert_inputs, attention_masks, grid_labels, grid_mask2d, pieces2word, dist_inputs, sent_length = batch
+            outputs = self.forward(bert_inputs, attention_masks, grid_mask2d, dist_inputs, pieces2word, sent_length)
+            grid_mask2d = grid_mask2d.clone()
 
+            outputs = torch.argmax(outputs, -1)
+            grid_labels = grid_labels[grid_mask2d].contiguous().view(-1)
+            outputs = outputs[grid_mask2d].contiguous().view(-1)
 
-        input_ids, attention_mask, segment_ids, valid_masks, label_ids, label_masks = batch
-        prediction, valid_len = self.predict(batch)
-        metrics.evaluate(prediction, label_ids, valid_len)
+            label_result.append(grid_labels)
+            pred_result.append(outputs)
+
+        label_result = torch.cat(label_result)
+        pred_result = torch.cat(pred_result)
+
+        p, r, f1, _ = precision_recall_fscore_support(label_result.cpu().numpy(),
+                                                      pred_result.cpu().numpy(),
+                                                      average="macro")
+
+        table = pt.PrettyTable(["{}".format("Evaluation"), 'F1', "Precision", "Recall"])
+        table.add_row(["Label"] + ["{:3.4f}".format(x) for x in [f1, p, r]])
+        print(table)
+
+    # def evaluate(
+    #         self,
+    #         batch=None,
+    #         metrics=None,
+    # ):
+    #     batch = [data.cuda() for data in batch]
+    #     bert_inputs, attention_masks, grid_labels, grid_mask2d, pieces2word, dist_inputs, sent_length = batch
+    #     outputs =self.forward(bert_inputs, attention_masks,grid_mask2d, dist_inputs,pieces2word, sent_length)
+    #     grid_mask2d = grid_mask2d.clone()
+    #     outputs = torch.argmax(outputs, -1)
+    #     grid_labels = grid_labels[grid_mask2d].contiguous().view(-1)
+    #     outputs = outputs[grid_mask2d].contiguous().view(-1)
+    #
+    #
+    #     input_ids, attention_mask, segment_ids, valid_masks, label_ids, label_masks = batch
+    #     prediction, valid_len = self.predict(batch)
+    #     metrics.evaluate(prediction, label_ids, valid_len)
 
 
