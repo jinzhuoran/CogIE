@@ -17,7 +17,11 @@ class Conll2003W2NERProcessor(Processor):
                  max_length=256):
         super().__init__(label_list, path, bert_model=bert_model,
                          max_length=max_length)
-        self.vocabulary.add_word_lst(["<SUC>"]) # NNW label
+        self.vocabulary.idx2word = {2: 'B-LOC', 3: 'B-ORG', 4: 'I-MISC', 5: 'B-MISC', 6: 'I-LOC', 7: 'B-PER', 8: 'I-ORG',
+                               9: 'I-PER', 0: '<pad>', 1: '<unk>'}
+        self.vocabulary.word2idx = {'B-LOC': 2, 'B-ORG': 3, 'I-MISC': 4, 'B-MISC': 5, 'I-LOC': 6, 'B-PER': 7, 'I-ORG': 8,
+                               'I-PER': 9, '<pad>': 0, '<unk>': 1}
+        # def
 
     def process(self, dataset):
         datable = DataTable()
@@ -199,7 +203,11 @@ def process_w2ner(sentence, labels, tokenizer, vocab, max_seq_length):
 
     entity_texts = []
     for idx,label in enumerate(labels):
+        if label == 'O':
+            label = "<pad>"
         _grid_labels[idx,idx] = vocab.word2idx[label]
+        if vocab.word2idx[label] >= 10:
+            print("????label={}????".format(label))
         entity_texts.append(str(idx)+"-#-"+str(vocab.word2idx[label]))
     entity_texts = set(entity_texts)
 

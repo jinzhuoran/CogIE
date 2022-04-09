@@ -237,10 +237,10 @@ class W2NER(nn.Module):
         word_reps, _ = torch.max(_bert_embs, dim=2)
 
         word_reps = self.dropout(word_reps)
-        word_reps,(hidden,_) = self.encoder(word_reps)
-        # packed_embs = pack_padded_sequence(word_reps, sent_length.cpu(), batch_first=True, enforce_sorted=False)
-        # packed_outs, (hidden, _) = self.encoder(packed_embs)
-        # word_reps, _ = pad_packed_sequence(packed_outs, batch_first=True, total_length=sent_length.max())
+        # word_reps,(hidden,_) = self.encoder(word_reps)
+        packed_embs = pack_padded_sequence(word_reps, sent_length.cpu(), batch_first=True, enforce_sorted=False)
+        packed_outs, (hidden, _) = self.encoder(packed_embs)
+        word_reps, _ = pad_packed_sequence(packed_outs, batch_first=True, total_length=dist_inputs.shape[-1])
 
         cln = self.cln(word_reps.unsqueeze(2), word_reps)
 
