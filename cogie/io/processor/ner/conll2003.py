@@ -17,10 +17,8 @@ class Conll2003W2NERProcessor(Processor):
                  max_length=256):
         super().__init__(label_list, path, bert_model=bert_model,
                          max_length=max_length)
-        self.vocabulary.idx2word = {2: 'B-LOC', 3: 'B-ORG', 4: 'I-MISC', 5: 'B-MISC', 6: 'I-LOC', 7: 'B-PER', 8: 'I-ORG',
-                               9: 'I-PER', 0: '<pad>', 1: '<unk>'}
-        self.vocabulary.word2idx = {'B-LOC': 2, 'B-ORG': 3, 'I-MISC': 4, 'B-MISC': 5, 'I-LOC': 6, 'B-PER': 7, 'I-ORG': 8,
-                               'I-PER': 9, '<pad>': 0, '<unk>': 1}
+        self.vocabulary.idx2word = {0: '<pad>', 1: '<suc>', 2: 'b-org', 3: 'b-misc', 4: 'b-per', 5: 'i-per', 6: 'b-loc'}
+        self.vocabulary.word2idx = {'<pad>': 0, '<suc>': 1, 'b-org': 2, 'b-misc': 3, 'b-per': 4, 'i-per': 5, 'b-loc': 6}
         # def
 
     def process(self, dataset):
@@ -203,7 +201,8 @@ def process_w2ner(sentence, labels, tokenizer, vocab, max_seq_length):
 
     entity_texts = []
     for idx,label in enumerate(labels):
-        if label == 'O':
+        label = label.lower()
+        if label == 'o':
             label = "<pad>"
         _grid_labels[idx,idx] = vocab.word2idx[label]
         if vocab.word2idx[label] >= 10:

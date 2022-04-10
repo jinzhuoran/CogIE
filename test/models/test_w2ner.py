@@ -10,33 +10,53 @@ import json
 from argparse import Namespace
 import json
 
+import random
+import numpy as np
+init_seed = 123
+
+random.seed(init_seed)
+np.random.seed(init_seed)
+torch.manual_seed(init_seed)
+torch.cuda.manual_seed(init_seed)
+torch.backends.cudnn.benchmark = False
+torch.backends.cudnn.deterministic = True
+
 device = torch.device('cuda')
 loader = Conll2003NERLoader()
 train_data, dev_data, test_data = loader.load_all('../../../cognlp/data/ner/conll2003/data')
 vocabulary = cogie.Vocabulary.load('../../../cognlp/data/ner/conll2003/data/vocabulary.txt')
-vocabulary.idx2word = {2: 'B-LOC', 3: 'B-ORG', 4: 'I-MISC', 5: 'B-MISC', 6: 'I-LOC', 7: 'B-PER', 8: 'I-ORG', 9: 'I-PER', 0: '<pad>', 1: '<unk>'}
-vocabulary.word2idx = {'B-LOC': 2, 'B-ORG': 3, 'I-MISC': 4, 'B-MISC': 5, 'I-LOC': 6, 'B-PER': 7, 'I-ORG': 8, 'I-PER': 9, '<pad>': 0, '<unk>': 1}
-def convert_to_json(data,file_name):
-    json_data = []
-    for i, (sentence, labels) in enumerate(zip(data.datas["sentence"], data.datas["label"])):
-        sample = {}
-        sample["sentence"] = sentence
-        ners = []
-        for j, label in enumerate(labels):
-            if label == "O":
-                continue
-            elif label == "<pad>" or label == "<unk>":
-                raise ValueError("????label={}???".format(label))
-            else:
-                ners.append({"index": [j], "type": label})
-        sample["ner"] = ners
-        json_data.append(sample)
-    json_data = json_data[0:2]
-    with open(file_name, "w") as f:
-        json.dump(json_data, f)
-convert_to_json(train_data,"train.json")
-convert_to_json(dev_data,"dev.json")
-convert_to_json(test_data,"test.json")
+vocabulary.idx2word = {0: '<pad>', 1: '<suc>', 2: 'b-org', 3: 'b-misc', 4: 'b-per', 5: 'i-per', 6: 'b-loc'}
+vocabulary.word2idx = {'<pad>': 0, '<suc>': 1, 'b-org': 2, 'b-misc': 3, 'b-per': 4, 'i-per': 5, 'b-loc': 6}
+
+def squeeze_data(data,num=2):
+    data.datas["sentence"] = data.datas["sentence"][:2]
+    data.datas["label"] = data.datas["label"][:2]
+    return data
+train_data = squeeze_data(train_data)
+dev_data = squeeze_data(dev_data)
+test_data = squeeze_data(test_data)
+
+#def convert_to_json(data,file_name):
+#     json_data = []
+#     for i, (sentence, labels) in enumerate(zip(data.datas["sentence"], data.datas["label"])):
+#         sample = {}
+#         sample["sentence"] = sentence
+#         ners = []
+#         for j, label in enumerate(labels):
+#             if label == "O":
+#                 continue
+#             elif label == "<pad>" or label == "<unk>":
+#                 raise ValueError("????label={}???".format(label))
+#             else:
+#                 ners.append({"index": [j], "type": label})
+#         sample["ner"] = ners
+#         json_data.append(sample)
+#     json_data = json_data[0:2]
+#     with open(file_name, "w") as f:
+#         json.dump(json_data, f)
+# convert_to_json(train_data,"train.json")
+# convert_to_json(dev_data,"dev.json")
+# convert_to_json(test_data,"test.json")
 
 # train_json_data = []
 # for i,(sentence,labels) in enumerate(zip(train_data.datas["sentence"],train_data.datas["label"])):
@@ -56,15 +76,17 @@ convert_to_json(test_data,"test.json")
 #     json.dump(train_json_data,f)
 
 processor = Conll2003W2NERProcessor(label_list=loader.get_labels(), path='../../../cognlp/data/ner/conll2003/data/',
-                                  bert_model='bert-large-cased',max_length=200)
+                                  bert_model='bert-large-cased',max_length=40)
 train_datable = processor.process(train_data)
 train_dataset = cogie.DataTableSet(train_datable)
-train_sampler = RandomSampler(train_dataset)
+# train_sampler = RandomSampler(train_dataset)
+train_sampler = torch.utils.data.SequentialSampler(train_dataset)
 
 dev_datable = processor.process(dev_data)
 dev_dataset = cogie.DataTableSet(dev_datable)
-dev_sampler = RandomSampler(dev_dataset)
-#
+# dev_sampler = RandomSampler(dev_dataset)
+dev_sampler = torch.utils.data.SequentialSampler(dev_dataset)
+
 # test_datable = processor.process(test_data)
 # test_dataset = cogie.DataTableSet(test_datable)
 # test_sampler = RandomSampler(test_dataset)
@@ -86,7 +108,7 @@ trainer = cogie.Trainer(model,
                         train_dataset,
                         dev_data=dev_dataset,
                         n_epochs=100,
-                        batch_size=5,
+                        batch_size=2,
                         loss=loss,
                         optimizer=optimizer,
                         scheduler=None,
@@ -100,7 +122,7 @@ trainer = cogie.Trainer(model,
                         save_file=None,
                         print_every=None,
                         scheduler_steps=None,
-                        validate_steps=1000,
+                        validate_steps=1,
                         save_steps=None,
                         grad_norm=None,
                         use_tqdm=True,
