@@ -49,50 +49,50 @@ def process(words,  tokenizer,  max_length):
     head_indexes = head_indexes + [0] * (max_length - len(head_indexes))
 
 
-    #process span
-    spans = []
-    node_type_labels_list= []
-    node_attr_labels_list= []
-    node_valid_attrs_list= []  # use for the comprehensive vocabulary
-    valid_p2r_edges_list= []
-    for start, end in enumerate_spans(tokens, max_span_width=self._max_span_width):
-        span_ix = (start, end)
-        node_type_label = node_types_dict[span_ix]
-        node_attr_label = node_attrs_dict[span_ix]
-
-        node_type_labels_list.append(node_type_label)
-        node_attr_labels_list.append(node_attr_label)
-
-        lexical_unit = origin_lus_dict[span_ix]
-        if lexical_unit in self._ontology.lu_frame_map:
-            # valid_frames = self._ontology.lu_frame_map[lexical_unit] + ["O"]
-            valid_attrs = self._ontology.lu_frame_map[lexical_unit]
-        else:
-            valid_attrs = ["O"]
-        node_valid_attrs_list.append(
-            ListField([LabelField(x, label_namespace='node_attr_labels') for x in valid_attrs]))
-
-        if node_attr_label in self._ontology.frame_fe_map:
-            valid_p2r_edge_labels = self._ontology.frame_fe_map[node_attr_label]
-            valid_p2r_edges_list.append(
-                ListField([LabelField(x, label_namespace='p2r_edge_labels') for x in valid_p2r_edge_labels]))
-        else:
-            valid_p2r_edges_list.append(ListField([LabelField(-1, skip_indexing=True)]))
-
-        spans.append(SpanField(start, end, text_field))
-
-    span_field = ListField(spans)
-    node_type_labels_field = SequenceLabelField(node_type_labels_list, span_field, label_namespace='node_type_labels')
-    node_attr_labels_field = SequenceLabelField(node_attr_labels_list, span_field, label_namespace='node_attr_labels')
-
-    node_valid_attrs_field = ListField(node_valid_attrs_list)
-    valid_p2r_edges_field = ListField(valid_p2r_edges_list)
-
-    fields["spans"] = span_field
-    fields["node_type_labels"] = node_type_labels_field
-    fields["node_attr_labels"] = node_attr_labels_field
-    fields["node_valid_attrs"] = node_valid_attrs_field
-    fields["valid_p2r_edges"] = valid_p2r_edges_field
+    # #process span
+    # spans = []
+    # node_type_labels_list= []
+    # node_attr_labels_list= []
+    # node_valid_attrs_list= []  # use for the comprehensive vocabulary
+    # valid_p2r_edges_list= []
+    # for start, end in enumerate_spans(tokens, max_span_width=self._max_span_width):
+    #     span_ix = (start, end)
+    #     node_type_label = node_types_dict[span_ix]
+    #     node_attr_label = node_attrs_dict[span_ix]
+    #
+    #     node_type_labels_list.append(node_type_label)
+    #     node_attr_labels_list.append(node_attr_label)
+    #
+    #     lexical_unit = origin_lus_dict[span_ix]
+    #     if lexical_unit in self._ontology.lu_frame_map:
+    #         # valid_frames = self._ontology.lu_frame_map[lexical_unit] + ["O"]
+    #         valid_attrs = self._ontology.lu_frame_map[lexical_unit]
+    #     else:
+    #         valid_attrs = ["O"]
+    #     node_valid_attrs_list.append(
+    #         ListField([LabelField(x, label_namespace='node_attr_labels') for x in valid_attrs]))
+    #
+    #     if node_attr_label in self._ontology.frame_fe_map:
+    #         valid_p2r_edge_labels = self._ontology.frame_fe_map[node_attr_label]
+    #         valid_p2r_edges_list.append(
+    #             ListField([LabelField(x, label_namespace='p2r_edge_labels') for x in valid_p2r_edge_labels]))
+    #     else:
+    #         valid_p2r_edges_list.append(ListField([LabelField(-1, skip_indexing=True)]))
+    #
+    #     spans.append(SpanField(start, end, text_field))
+    #
+    # span_field = ListField(spans)
+    # node_type_labels_field = SequenceLabelField(node_type_labels_list, span_field, label_namespace='node_type_labels')
+    # node_attr_labels_field = SequenceLabelField(node_attr_labels_list, span_field, label_namespace='node_attr_labels')
+    #
+    # node_valid_attrs_field = ListField(node_valid_attrs_list)
+    # valid_p2r_edges_field = ListField(valid_p2r_edges_list)
+    #
+    # fields["spans"] = span_field
+    # fields["node_type_labels"] = node_type_labels_field
+    # fields["node_attr_labels"] = node_attr_labels_field
+    # fields["node_valid_attrs"] = node_valid_attrs_field
+    # fields["valid_p2r_edges"] = valid_p2r_edges_field
 
     return tokens_x,masks,head_indexes
 
