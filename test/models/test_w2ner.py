@@ -45,9 +45,9 @@ dev_dataset = cogie.DataTableSet(dev_datable)
 dev_sampler = RandomSampler(dev_dataset)
 # dev_sampler = torch.utils.data.SequentialSampler(dev_dataset)
 
-# test_datable = processor.process(test_data)
-# test_dataset = cogie.DataTableSet(test_datable)
-# test_sampler = RandomSampler(test_dataset)
+test_datable = processor.process(test_data)
+test_dataset = cogie.DataTableSet(test_datable)
+test_sampler = RandomSampler(test_dataset)
 
 with open("./conll03.json","r") as f:
     config = json.load(f)
@@ -57,8 +57,8 @@ print("label num:",config.label_num)
 config.vocab = vocabulary
 model = W2NER(config)
 
-# metric = cogie.SpanFPreRecMetric(vocabulary)
-metric = None
+# metric = cogie.ClassifyFPreRecMetric(vocabulary)
+metric = cogie.ClassifyFPreRecMetric(f_type='macro')
 loss = nn.CrossEntropyLoss()
 # optimizer = optim.Adam(model.parameters(), lr=0.000005)
 # optimizer = optim.Adam(model.parameters(),lr=1e-5)
@@ -87,7 +87,7 @@ scheduler = transformers.get_linear_schedule_with_warmup(optimizer,
 
 trainer = cogie.Trainer(model,
                         train_dataset,
-                        dev_data=dev_dataset,
+                        dev_data=test_dataset,
                         n_epochs=10,
                         batch_size=config.batch_size,
                         loss=loss,
@@ -95,7 +95,7 @@ trainer = cogie.Trainer(model,
                         scheduler=scheduler,
                         metrics=metric,
                         train_sampler=train_sampler,
-                        dev_sampler=dev_sampler,
+                        dev_sampler=test_sampler,
                         drop_last=False,
                         gradient_accumulation_steps=1,
                         num_workers=5,
@@ -103,7 +103,7 @@ trainer = cogie.Trainer(model,
                         save_file=None,
                         print_every=None,
                         scheduler_steps=1,
-                        validate_steps=1,
+                        validate_steps=500,
                         save_steps=None,
                         grad_norm=1,# 梯度裁减
                         use_tqdm=True,

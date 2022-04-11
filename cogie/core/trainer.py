@@ -13,7 +13,7 @@ from cogie.core import Tester
 import logging
 from cogie.utils.util import save_model, load_model, module2parallel
 from torch.utils.tensorboard import SummaryWriter
-
+from sklearn.metrics import precision_recall_fscore_support, f1_score
 
 class Trainer:
     def __init__(
@@ -305,14 +305,13 @@ class Trainer:
                     else:
                         progress = enumerate(self.dev_dataloader, 1)
                     with torch.no_grad():
-                        self.model.evaluate(progress)
-                        # for step, batch in progress:
-                        #     self.model.evaluate(batch, self.metrics)
+                        for step, batch in progress:
+                            self.model.evaluate(batch, self.metrics)
                     self.model.train()
-                    # evaluate_result = self.metrics.get_metric()
-                    # self.logger.info("Evaluate result = %s", str(evaluate_result))
-                    # for key, value in evaluate_result.items():
-                    #     self.writer.add_scalar(tag=key, scalar_value=value, global_step=global_step)
+                    evaluate_result = self.metrics.get_metric()
+                    self.logger.info("Evaluate result = %s", str(evaluate_result))
+                    for key, value in evaluate_result.items():
+                        self.writer.add_scalar(tag=key, scalar_value=value, global_step=global_step)
 
             self.logger.info("Epoch loss = %f", epoch_loss)
             self.logger.info("End time = %s", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())))
