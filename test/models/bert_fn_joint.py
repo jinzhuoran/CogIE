@@ -22,13 +22,13 @@ train_datable = processor.process(train_data)
 train_dataset = DataTableSet(train_datable, to_device=False)
 train_sampler = RandomSampler(train_dataset)
 
-dev_datable = processor.process(dev_data)
-dev_dataset = DataTableSet(dev_datable, to_device=False)
-dev_sampler = RandomSampler(dev_dataset)
-
-dev_datable = processor.process(test_data)
-dev_dataset = DataTableSet(dev_datable, to_device=False)
-dev_sampler = RandomSampler(dev_dataset)
+# dev_datable = processor.process(dev_data)
+# dev_dataset = DataTableSet(dev_datable, to_device=False)
+# dev_sampler = RandomSampler(dev_dataset)
+#
+# dev_datable = processor.process(test_data)
+# dev_dataset = DataTableSet(dev_datable, to_device=False)
+# dev_sampler = RandomSampler(dev_dataset)
 
 model = Bert4FnJoint(device=device)
 metric = AccuracyMetric()
@@ -37,15 +37,15 @@ optimizer = optim.Adam(model.parameters(), lr=0.00005)
 
 trainer = Trainer(model,
                   train_dataset,
-                  dev_data=dev_dataset,
+                  dev_data=None,
                   n_epochs=20,
-                  batch_size=20,
+                  batch_size=3,
                   loss=loss,
                   optimizer=optimizer,
                   scheduler=None,
                   metrics=metric,
                   train_sampler=train_sampler,
-                  dev_sampler=dev_sampler,
+                  dev_sampler=None,
                   drop_last=False,
                   gradient_accumulation_steps=1,
                   save_path='../../../cogie/data/fn/framenet_joint/model',

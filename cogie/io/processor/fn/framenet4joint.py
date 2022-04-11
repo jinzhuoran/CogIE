@@ -25,12 +25,12 @@ class FrameNet4JointProcessor:
                 tqdm(zip(dataset["words"],dataset["lemma"],dataset["node_types"],
                 dataset["node_attrs"],dataset["origin_lexical_units"],dataset["p2p_edges"],
                 dataset["p2r_edges"],dataset["origin_frames"],dataset["frame_elements"]),total=len(dataset['words'])):
-            tokens_x,masks,head_indexes,spans,\
+            tokens_x,token_masks,head_indexes,spans,\
             node_type_labels_list,node_attr_labels_list,\
             node_valid_attrs_list,valid_p2r_edges_list,\
-            p2p_edge_labels_and_indices,p2r_edge_labels_and_indices= self.process_item(words,lemmas,node_types,node_attrs,origin_lexical_units,p2p_edges,p2r_edges,origin_frames,frame_elements )
+            p2p_edge_labels_and_indices,p2r_edge_labels_and_indices,raw_words_len,n_spans = self.process_item(words,lemmas,node_types,node_attrs,origin_lexical_units,p2p_edges,p2r_edges,origin_frames,frame_elements )
             datable("tokens_x", tokens_x)
-            datable("masks",masks)
+            datable("token_masks",token_masks)
             datable("head_indexes",head_indexes)
             datable("spans",spans )
             datable("node_type_labels_list",node_type_labels_list )#节点粗粒度分类
@@ -39,12 +39,15 @@ class FrameNet4JointProcessor:
             datable("valid_p2r_edges_list", valid_p2r_edges_list)
             datable("p2p_edge_labels_and_indices", p2p_edge_labels_and_indices)
             datable("p2r_edge_labels_and_indices", p2r_edge_labels_and_indices)
+            datable("raw_words_len", raw_words_len)
+            datable("n_spans",n_spans )
         return datable
 
 
     def process_item(self,raw_words,lemmas,node_types,node_attrs,origin_lexical_units,p2p_edges,p2r_edges,origin_frames,frame_elements ):
         #process token
         tokens_x, is_heads,head_indexes = [],[],[]
+        raw_words_len = len(raw_words)
         words = ['[CLS]'] + raw_words + ['[SEP]']
         for w in words:
             tokens = self.tokenizer.tokenize(w) if w not in ['[CLS]', '[SEP]'] else [w]
@@ -55,7 +58,7 @@ class FrameNet4JointProcessor:
                 is_head = [1] + [0] * (len(tokens) - 1)
             tokens_x.extend(tokens_xx)
             is_heads.extend(is_head)
-        masks = [True]*len(tokens_x) + [False] * (self.max_length - len(tokens_x))
+        token_masks = [True]*len(tokens_x) + [False] * (self.max_length - len(tokens_x))
         tokens_x = tokens_x + [0] * (self.max_length - len(tokens_x))
         for i in range(len(is_heads)):
             if is_heads[i]:
@@ -124,7 +127,7 @@ class FrameNet4JointProcessor:
         p2r_edge_labels_and_indices["labels"] = p2r_edge_labels
 
 
-        return tokens_x,masks,head_indexes,spans,node_type_labels_list,node_attr_labels_list,node_valid_attrs_list,valid_p2r_edges_list,p2p_edge_labels_and_indices,p2r_edge_labels_and_indices
+        return tokens_x,token_masks,head_indexes,spans,node_type_labels_list,node_attr_labels_list,node_valid_attrs_list,valid_p2r_edges_list,p2p_edge_labels_and_indices,p2r_edge_labels_and_indices,raw_words_len,n_spans
 
     def get_spans(self,tokens,min_span_width=1 ,max_span_width=None, filter_function= None):
         max_span_width = max_span_width or len(tokens)

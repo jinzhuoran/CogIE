@@ -29,6 +29,8 @@ __all__ = [
     "BalancedDataParallel",
     "Biaffine",
     "MLP",
+    "EndpointSpanExtractor",
+    "SelfAttentiveSpanExtractor",
     # "EdgeBuilder",
     # "NodeBuilder",
 
