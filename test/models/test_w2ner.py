@@ -9,74 +9,55 @@ from cogie.models.ner.w2ner import W2NER
 import json
 from argparse import Namespace
 import json
+import transformers
 
 import random
 import numpy as np
+from cogie.utils import seed_everything
 init_seed = 123
-
-random.seed(init_seed)
-np.random.seed(init_seed)
-torch.manual_seed(init_seed)
-torch.cuda.manual_seed(init_seed)
-torch.backends.cudnn.benchmark = False
-torch.backends.cudnn.deterministic = True
+seed_everything(init_seed)
 
 device = torch.device('cuda')
 loader = Conll2003NERLoader()
 train_data, dev_data, test_data = loader.load_all('../../../cognlp/data/ner/conll2003/data')
 vocabulary = cogie.Vocabulary.load('../../../cognlp/data/ner/conll2003/data/vocabulary.txt')
-vocabulary.idx2word = {0: '<pad>', 1: '<suc>', 2: 'b-org', 3: 'b-misc', 4: 'b-per', 5: 'i-per', 6: 'b-loc'}
-vocabulary.word2idx = {'<pad>': 0, '<suc>': 1, 'b-org': 2, 'b-misc': 3, 'b-per': 4, 'i-per': 5, 'b-loc': 6}
+# vocabulary.idx2word = {0: '<pad>', 1: '<suc>', 2: 'b-org', 3: 'b-misc', 4: 'b-per', 5: 'i-per', 6: 'b-loc'}
+# vocabulary.word2idx = {'<pad>': 0, '<suc>': 1, 'b-org': 2, 'b-misc': 3, 'b-per': 4, 'i-per': 5, 'b-loc': 6}
+vocabulary.idx2word = {0: '<pad>', 1: '<suc>', 2: 'b-org', 3: 'b-misc', 4: 'b-per', 5: 'i-per', 6: 'b-loc', 7: 'i-org', 8: 'i-misc', 9: 'i-loc'}
+vocabulary.word2idx = {'<pad>': 0, '<suc>': 1, 'b-org': 2, 'b-misc': 3, 'b-per': 4, 'i-per': 5, 'b-loc': 6, 'i-org': 7, 'i-misc': 8, 'i-loc': 9}
 
-def squeeze_data(data,num=2):
-    data.datas["sentence"] = data.datas["sentence"][:2]
-    data.datas["label"] = data.datas["label"][:2]
-    return data
-train_data = squeeze_data(train_data)
-dev_data = squeeze_data(dev_data)
-test_data = squeeze_data(test_data)
+# def squeeze_data(data,num=2):
+#     data.datas["sentence"] = data.datas["sentence"][:2]
+#     data.datas["label"] = data.datas["label"][:2]
+#     return data
+# train_data = squeeze_data(train_data)
+# dev_data = squeeze_data(dev_data)
+# test_data = squeeze_data(test_data)
 
-#def convert_to_json(data,file_name):
-#     json_data = []
-#     for i, (sentence, labels) in enumerate(zip(data.datas["sentence"], data.datas["label"])):
-#         sample = {}
-#         sample["sentence"] = sentence
-#         ners = []
-#         for j, label in enumerate(labels):
-#             if label == "O":
-#                 continue
-#             elif label == "<pad>" or label == "<unk>":
-#                 raise ValueError("????label={}???".format(label))
-#             else:
-#                 ners.append({"index": [j], "type": label})
-#         sample["ner"] = ners
-#         json_data.append(sample)
-#     json_data = json_data[0:2]
-#     with open(file_name, "w") as f:
-#         json.dump(json_data, f)
-# convert_to_json(train_data,"train.json")
-# convert_to_json(dev_data,"dev.json")
-# convert_to_json(test_data,"test.json")
-
-# train_json_data = []
-# for i,(sentence,labels) in enumerate(zip(train_data.datas["sentence"],train_data.datas["label"])):
-#     sample = {}
-#     sample["sentence"] = sentence
-#     ners = []
-#     for j,label in enumerate(labels):
-#         if label == "O":
-#             continue
-#         elif label == "<pad>" or label == "<unk>":
-#             raise ValueError("????label={}???".format(label))
-#         else:
-#             ners.append({"index":[j],"type":label})
-#     sample["ner"] = ners
-#     train_json_data.append(sample)
-# with open("train.json","w") as f:
-#     json.dump(train_json_data,f)
+def convert_to_json(data,file_name):
+    json_data = []
+    for i, (sentence, labels) in enumerate(zip(data.datas["sentence"], data.datas["label"])):
+        sample = {}
+        sample["sentence"] = sentence
+        ners = []
+        for j, label in enumerate(labels):
+            if label == "O":
+                continue
+            elif label == "<pad>" or label == "<unk>":
+                raise ValueError("????label={}???".format(label))
+            else:
+                ners.append({"index": [j], "type": label})
+        sample["ner"] = ners
+        json_data.append(sample)
+    # json_data = json_data[0:2]
+    with open(file_name, "w") as f:
+        json.dump(json_data, f)
+convert_to_json(train_data,"train.json")
+convert_to_json(dev_data,"dev.json")
+convert_to_json(test_data,"test.json")
 
 processor = Conll2003W2NERProcessor(label_list=loader.get_labels(), path='../../../cognlp/data/ner/conll2003/data/',
-                                  bert_model='bert-large-cased',max_length=40)
+                                  bert_model='bert-large-cased',max_length=256)
 train_datable = processor.process(train_data)
 train_dataset = cogie.DataTableSet(train_datable)
 # train_sampler = RandomSampler(train_dataset)
@@ -103,15 +84,38 @@ model = W2NER(config)
 metric = None
 loss = nn.CrossEntropyLoss(ignore_index=0)
 # optimizer = optim.Adam(model.parameters(), lr=0.000005)
-optimizer = optim.Adam(model.parameters(),lr=1e-5)
+# optimizer = optim.Adam(model.parameters(),lr=1e-5)
+
+
+bert_params = set(model.bert.parameters())
+other_params = list(set(model.parameters()) - bert_params)
+no_decay = ['bias', 'LayerNorm.weight']
+params = [
+    {'params': [p for n, p in model.bert.named_parameters() if not any(nd in n for nd in no_decay)],
+     'lr': config.bert_learning_rate,
+     'weight_decay': config.weight_decay},
+    {'params': [p for n, p in model.bert.named_parameters() if any(nd in n for nd in no_decay)],
+     'lr': config.bert_learning_rate,
+     'weight_decay': 0.0},
+    {'params': other_params,
+     'lr': config.learning_rate,
+     'weight_decay': config.weight_decay},
+]
+
+updates_total = len(train_dataset) // config.batch_size * config.epochs
+optimizer = transformers.AdamW(params, lr=config.learning_rate, weight_decay=config.weight_decay)
+scheduler = transformers.get_linear_schedule_with_warmup(optimizer,
+                                                              num_warmup_steps=config.warm_factor * updates_total,
+                                                              num_training_steps=updates_total)
+
 trainer = cogie.Trainer(model,
                         train_dataset,
                         dev_data=dev_dataset,
                         n_epochs=100,
-                        batch_size=2,
+                        batch_size=config.batch_size,
                         loss=loss,
                         optimizer=optimizer,
-                        scheduler=None,
+                        scheduler=scheduler,
                         metrics=metric,
                         train_sampler=train_sampler,
                         dev_sampler=dev_sampler,
@@ -121,10 +125,10 @@ trainer = cogie.Trainer(model,
                         save_path="../../../cognlp/data/ner/conll2003/model",
                         save_file=None,
                         print_every=None,
-                        scheduler_steps=None,
+                        scheduler_steps=1,
                         validate_steps=1,
                         save_steps=None,
-                        grad_norm=None,
+                        grad_norm=1,# 梯度裁减
                         use_tqdm=True,
                         device=device,
                         device_ids=[0],
@@ -133,7 +137,7 @@ trainer = cogie.Trainer(model,
                         writer_path='../../../cognlp/data/ner/conll2003/tensorboard',
                         fp16=False,
                         fp16_opt_level='O1',
-                        checkpoint_path=None,
+                        checkpoint_path="./checkpoint-1",
                         task='conll2003',
                         logger_path='../../../cognlp/data/ner/conll2003/logger')
 

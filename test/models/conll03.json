@@ -17,7 +17,7 @@
   "out_dropout": 0.33,
 
   "epochs": 10,
-  "batch_size": 5,
+  "batch_size": 2,
 
   "learning_rate": 1e-3,
   "weight_decay": 0,

@@ -17,9 +17,11 @@ class Conll2003W2NERProcessor(Processor):
                  max_length=256):
         super().__init__(label_list, path, bert_model=bert_model,
                          max_length=max_length)
-        self.vocabulary.idx2word = {0: '<pad>', 1: '<suc>', 2: 'b-org', 3: 'b-misc', 4: 'b-per', 5: 'i-per', 6: 'b-loc'}
-        self.vocabulary.word2idx = {'<pad>': 0, '<suc>': 1, 'b-org': 2, 'b-misc': 3, 'b-per': 4, 'i-per': 5, 'b-loc': 6}
-        # def
+        # self.vocabulary.idx2word = {0: '<pad>', 1: '<suc>', 2: 'b-org', 3: 'b-misc', 4: 'b-per', 5: 'i-per', 6: 'b-loc'}
+        # self.vocabulary.word2idx = {'<pad>': 0, '<suc>': 1, 'b-org': 2, 'b-misc': 3, 'b-per': 4, 'i-per': 5, 'b-loc': 6}
+
+        self.vocabulary.idx2word = {0: '<pad>', 1: '<suc>', 2: 'b-org', 3: 'b-misc', 4: 'b-per', 5: 'i-per', 6: 'b-loc', 7: 'i-org', 8: 'i-misc', 9: 'i-loc'}
+        self.vocabulary.word2idx ={'<pad>': 0, '<suc>': 1, 'b-org': 2, 'b-misc': 3, 'b-per': 4, 'i-per': 5, 'b-loc': 6, 'i-org': 7, 'i-misc': 8, 'i-loc': 9}
 
     def process(self, dataset):
         datable = DataTable()
