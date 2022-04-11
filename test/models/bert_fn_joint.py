@@ -16,7 +16,7 @@ device = torch.device('cuda:0')
 
 loader = FrameNet4JointLoader()
 train_data, dev_data, test_data = loader.load_all('../../../cognlp/data/fn/joint/data')
-processor = FrameNet4JointProcessor(max_span_width = 15)
+processor = FrameNet4JointProcessor(path='../../../cognlp/data/fn/joint/data')
 
 train_datable = processor.process(train_data)
 train_dataset = DataTableSet(train_datable, to_device=False)
