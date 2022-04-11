@@ -6,6 +6,7 @@
 from .bert_fn import *
 from .bert_frame import *
 from .bert_argument import *
+from .bert_fn_joint import *
 __all__ = [
     "Bert4Fn",
     "Bert4FnParallel",
@@ -13,4 +14,5 @@ __all__ = [
     "Bert4FrameParallel",
     "Bert4Argument",
     "Bert4ArgumentParallel",
+    "Bert4FnJoint",
 ]
