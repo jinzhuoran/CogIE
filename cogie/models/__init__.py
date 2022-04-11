@@ -53,4 +53,5 @@ __all__ = [
     "DenseFlatIndexer",
 
     "PFN",
+    "Bert4FnJoint",
 ]

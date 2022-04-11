@@ -8,6 +8,7 @@ from .core import *
 from .utils import *
 from .io import *
 from .toolkit import *
+from .modules import *
 __all__ = [
     "MetricBase",
     "AccuracyMetric",
@@ -28,6 +29,8 @@ __all__ = [
     "BalancedDataParallel",
     "Biaffine",
     "MLP",
+    # "EdgeBuilder",
+    # "NodeBuilder",
 
     "BaseModule",
     "BaseFunction",
@@ -64,6 +67,7 @@ __all__ = [
     "DenseHNSWFlatIndexer",
     "DenseFlatIndexer",
     "PFN",
+    "Bert4FnJoint",
 
     "Vocabulary",
     "DataTable",
@@ -76,6 +80,7 @@ __all__ = [
     "el_load_candidates",
     "el_print_colorful_text",
     "el_print_colorful_prediction",
+    # "FrameOntology",
 
     "BaseToolkit",
     "TokenizeToolkit",

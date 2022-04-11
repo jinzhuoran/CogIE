@@ -6,6 +6,7 @@
 from .vocabulary import *
 from .util import *
 from .model import *
+from .frameontology import *
 __all__ = [
     "Vocabulary",
     "load_json",
@@ -19,4 +20,5 @@ __all__ = [
     "el_load_candidates",
     "el_print_colorful_text",
     "el_print_colorful_prediction",
+    # "FrameOntology",
 ]
