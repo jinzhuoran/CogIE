@@ -27,15 +27,18 @@ class FrameNet4JointProcessor:
                 dataset["p2r_edges"],dataset["origin_frames"],dataset["frame_elements"]),total=len(dataset['words'])):
             tokens_x,masks,head_indexes,spans,\
             node_type_labels_list,node_attr_labels_list,\
-            node_valid_attrs_list,valid_p2r_edges_list = self.process_item(words,lemmas,node_types,node_attrs,origin_lexical_units,p2p_edges,p2r_edges,origin_frames,frame_elements )
+            node_valid_attrs_list,valid_p2r_edges_list,\
+            p2p_edge_labels_and_indices,p2r_edge_labels_and_indices= self.process_item(words,lemmas,node_types,node_attrs,origin_lexical_units,p2p_edges,p2r_edges,origin_frames,frame_elements )
             datable("tokens_x", tokens_x)
             datable("masks",masks)
             datable("head_indexes",head_indexes)
             datable("spans",spans )
-            datable("node_type_labels_list",node_type_labels_list )
-            datable("node_attr_labels_list",node_attr_labels_list )
+            datable("node_type_labels_list",node_type_labels_list )#节点粗粒度分类
+            datable("node_attr_labels_list",node_attr_labels_list )#节点细粒度分类
             datable("node_valid_attrs_list",node_valid_attrs_list)
             datable("valid_p2r_edges_list", valid_p2r_edges_list)
+            datable("p2p_edge_labels_and_indices", p2p_edge_labels_and_indices)
+            datable("p2r_edge_labels_and_indices", p2r_edge_labels_and_indices)
         return datable
 
 
@@ -65,22 +68,19 @@ class FrameNet4JointProcessor:
             format_label_fields(node_types, node_attrs, origin_lexical_units,p2p_edges, p2r_edges,
                                                                           origin_frames, frame_elements)
 
-        #process span
-        spans = []
-        item_node_type_labels_list= []
-        item_node_attr_labels_list= []
+        #process span and node
         node_valid_attrs_list= []  # use for the comprehensive vocabulary
         valid_p2r_edges_list= []
-        type_labels_list=[]
-        attr_labels_list=[]
+        node_type_labels_list=[]
+        node_attr_labels_list=[]
         spans=self.get_spans(raw_words,max_span_width=self.max_span_width)
         for start, end in spans:
             span_ix = (start, end)
             node_type_label = node_types_dict[span_ix]
             node_attr_label = node_attrs_dict[span_ix]
 
-            item_node_type_labels_list.append(node_type_label)
-            item_node_attr_labels_list.append(node_attr_label)
+            node_type_labels_list.append(node_type_label)
+            node_attr_labels_list.append(node_attr_label)
 
             lexical_unit = origin_lus_dict[span_ix]
             if lexical_unit in self._ontology.lu_frame_map:
@@ -94,12 +94,37 @@ class FrameNet4JointProcessor:
                 valid_p2r_edges_list.append([x for x in valid_p2r_edge_labels])
             else:
                 valid_p2r_edges_list.append([-1])
-        type_labels_list=[item_node_type_labels_list, raw_words]
-        attr_labels_list=[item_node_attr_labels_list, raw_words]
-        print("end")
+
+        #process edge
+        n_spans = len(spans)
+        span_tuples = [(span[0], span[1]) for span in spans]
+        candidate_indices = [(i, j) for i in range(n_spans) for j in range(n_spans)]
+
+        p2p_edge_labels = []
+        p2p_edge_indices = []
+        p2p_edge_labels_and_indices={}
+        p2r_edge_labels = []
+        p2r_edge_indices = []
+        p2r_edge_labels_and_indices = {}
+        for i, j in candidate_indices:
+            # becasue i index is nested, j is not nested
+            span_pair = (span_tuples[i], span_tuples[j])
+            p2p_edge_label = p2p_edges_dict[span_pair]
+            p2r_edge_label = p2r_edges_dict[span_pair]
+            if p2p_edge_label:
+                p2p_edge_indices.append((i, j))
+                p2p_edge_labels.append(p2p_edge_label)
+            if p2r_edge_label:
+                p2r_edge_indices.append((i, j))
+                p2r_edge_labels.append(p2r_edge_label)
+
+        p2p_edge_labels_and_indices["indices"] = p2p_edge_indices
+        p2p_edge_labels_and_indices["labels"] = p2p_edge_labels
+        p2r_edge_labels_and_indices["indices"] = p2r_edge_indices
+        p2r_edge_labels_and_indices["labels"] = p2r_edge_labels
 
 
-        return tokens_x,masks,head_indexes,spans,type_labels_list,attr_labels_list,node_valid_attrs_list,valid_p2r_edges_list
+        return tokens_x,masks,head_indexes,spans,node_type_labels_list,node_attr_labels_list,node_valid_attrs_list,valid_p2r_edges_list,p2p_edge_labels_and_indices,p2r_edge_labels_and_indices
 
     def get_spans(self,tokens,min_span_width=1 ,max_span_width=None, filter_function= None):
         max_span_width = max_span_width or len(tokens)
