@@ -52,7 +52,7 @@ dev_sampler = RandomSampler(dev_dataset)
 with open("./conll03.json","r") as f:
     config = json.load(f)
 config = Namespace(**config)
-config.label_num = len(vocabulary.word2idx) + 1
+config.label_num = len(vocabulary.word2idx)
 print("label num:",config.label_num)
 config.vocab = vocabulary
 model = W2NER(config)
@@ -103,7 +103,7 @@ trainer = cogie.Trainer(model,
                         save_file=None,
                         print_every=None,
                         scheduler_steps=1,
-                        validate_steps=1000,
+                        validate_steps=1,
                         save_steps=None,
                         grad_norm=1,# 梯度裁减
                         use_tqdm=True,
