@@ -9,15 +9,64 @@ from transformers import BertTokenizer
 from tqdm import tqdm
 import os
 import xml.etree.ElementTree as ElementTree
-
+from cogie.utils import Vocabulary
 
 class FrameNet4JointProcessor:
-    def __init__(self,path,max_span_width = 15, bert_model='bert-base-cased', max_length=128):
-        self.max_span_width = max_span_width
-        self.tokenizer = BertTokenizer.from_pretrained(bert_model)
+    def __init__(self,
+                 node_types_label_list=None,
+                 node_attrs_label_list=None,
+                 p2p_edges_label_list=None,
+                 p2r_edges_label_list=None,
+                 path=None,bert_model='bert-base-cased',max_span_width = 15, max_length=128):
+        self.path = path
+        self.bert_model = bert_model
         self.max_length = max_length
-        self.path=path
+        self.tokenizer = BertTokenizer.from_pretrained(bert_model)
+        self.max_span_width = max_span_width
         self._ontology = FrameOntology(self.path)
+
+
+        if node_types_label_list:
+            self.node_types_vocabulary = Vocabulary(padding="O", unknown=None)
+            self.node_types_vocabulary.add_word_lst(node_types_label_list)
+            self.node_types_vocabulary.build_vocab()
+            self.node_types_vocabulary.save(os.path.join(path, 'node_types_vocabulary.txt'))
+        else:
+            self.node_types_vocabulary = Vocabulary.load(os.path.join(path, 'node_types_vocabulary.txt'))
+
+        if node_attrs_label_list:
+            self.node_attrs_vocabulary = Vocabulary(padding="O", unknown=None)
+            self.node_attrs_vocabulary.add_word_lst(node_attrs_label_list)
+            self.node_attrs_vocabulary.build_vocab()
+            self.node_attrs_vocabulary.save(os.path.join(path, 'node_attrs_vocabulary.txt'))
+        else:
+            self.node_attrs_vocabulary = Vocabulary.load(os.path.join(path, 'node_attrs_vocabulary.txt'))
+
+        if p2p_edges_label_list:
+            self.p2p_edges_vocabulary = Vocabulary(padding=None, unknown=None)
+            self.p2p_edges_vocabulary.add_word_lst(p2p_edges_label_list)
+            self.p2p_edges_vocabulary.build_vocab()
+            self.p2p_edges_vocabulary.save(os.path.join(path, 'p2p_edges_vocabulary.txt'))
+        else:
+            self.p2p_edges_vocabulary = Vocabulary.load(os.path.join(path, 'p2p_edges_vocabulary.txt'))
+
+        if p2r_edges_label_list:
+            self.p2r_edges_vocabulary = Vocabulary(padding=None, unknown=None)
+            self.p2r_edges_vocabulary.add_word_lst(p2r_edges_label_list)
+            self.p2r_edges_vocabulary.build_vocab()
+            self.p2r_edges_vocabulary.save(os.path.join(path, 'p2r_edges_vocabulary.txt'))
+        else:
+            self.p2r_edges_vocabulary = Vocabulary.load(os.path.join(path, 'p2r_edges_vocabulary.txt'))
+
+
+    def get_node_types_vocabulary(self):
+        return self.node_types_vocabulary
+    def get_node_attrs_vocabulary(self):
+        return self.node_attrs_vocabulary
+    def get_p2p_edges_vocabulary(self):
+        return self.p2p_edges_vocabulary
+    def get_p2r_edges_vocabulary(self):
+        return self.p2r_edges_vocabulary
 
     def process(self, dataset):
         datable = DataTable()
@@ -25,12 +74,12 @@ class FrameNet4JointProcessor:
                 tqdm(zip(dataset["words"],dataset["lemma"],dataset["node_types"],
                 dataset["node_attrs"],dataset["origin_lexical_units"],dataset["p2p_edges"],
                 dataset["p2r_edges"],dataset["origin_frames"],dataset["frame_elements"]),total=len(dataset['words'])):
-            tokens_x,masks,head_indexes,spans,\
+            tokens_x,token_masks,head_indexes,spans,\
             node_type_labels_list,node_attr_labels_list,\
             node_valid_attrs_list,valid_p2r_edges_list,\
-            p2p_edge_labels_and_indices,p2r_edge_labels_and_indices= self.process_item(words,lemmas,node_types,node_attrs,origin_lexical_units,p2p_edges,p2r_edges,origin_frames,frame_elements )
+            p2p_edge_labels_and_indices,p2r_edge_labels_and_indices,raw_words_len,n_spans = self.process_item(words,lemmas,node_types,node_attrs,origin_lexical_units,p2p_edges,p2r_edges,origin_frames,frame_elements )
             datable("tokens_x", tokens_x)
-            datable("masks",masks)
+            datable("token_masks",token_masks)
             datable("head_indexes",head_indexes)
             datable("spans",spans )
             datable("node_type_labels_list",node_type_labels_list )#节点粗粒度分类
@@ -39,12 +88,15 @@ class FrameNet4JointProcessor:
             datable("valid_p2r_edges_list", valid_p2r_edges_list)
             datable("p2p_edge_labels_and_indices", p2p_edge_labels_and_indices)
             datable("p2r_edge_labels_and_indices", p2r_edge_labels_and_indices)
+            datable("raw_words_len", raw_words_len)
+            datable("n_spans",n_spans )
         return datable
 
 
     def process_item(self,raw_words,lemmas,node_types,node_attrs,origin_lexical_units,p2p_edges,p2r_edges,origin_frames,frame_elements ):
         #process token
         tokens_x, is_heads,head_indexes = [],[],[]
+        raw_words_len = len(raw_words)
         words = ['[CLS]'] + raw_words + ['[SEP]']
         for w in words:
             tokens = self.tokenizer.tokenize(w) if w not in ['[CLS]', '[SEP]'] else [w]
@@ -55,7 +107,7 @@ class FrameNet4JointProcessor:
                 is_head = [1] + [0] * (len(tokens) - 1)
             tokens_x.extend(tokens_xx)
             is_heads.extend(is_head)
-        masks = [True]*len(tokens_x) + [False] * (self.max_length - len(tokens_x))
+        token_masks = [True]*len(tokens_x) + [False] * (self.max_length - len(tokens_x))
         tokens_x = tokens_x + [0] * (self.max_length - len(tokens_x))
         for i in range(len(is_heads)):
             if is_heads[i]:
@@ -124,7 +176,7 @@ class FrameNet4JointProcessor:
         p2r_edge_labels_and_indices["labels"] = p2r_edge_labels
 
 
-        return tokens_x,masks,head_indexes,spans,node_type_labels_list,node_attr_labels_list,node_valid_attrs_list,valid_p2r_edges_list,p2p_edge_labels_and_indices,p2r_edge_labels_and_indices
+        return tokens_x,token_masks,head_indexes,spans,node_type_labels_list,node_attr_labels_list,node_valid_attrs_list,valid_p2r_edges_list,p2p_edge_labels_and_indices,p2r_edge_labels_and_indices,raw_words_len,n_spans
 
     def get_spans(self,tokens,min_span_width=1 ,max_span_width=None, filter_function= None):
         max_span_width = max_span_width or len(tokens)
