@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 from transformers import  AutoModel
 from cogie.modules.encoder import LSTM
+import torch.nn.functional as F
 from allennlp.modules.span_extractors import EndpointSpanExtractor, SelfAttentiveSpanExtractor
 # from cogie.modules.decoder import NodeBuilder
 # from cogie.modules.decoder import EdgeBuilder
@@ -68,6 +69,8 @@ class Bert4FnJoint(BaseModule):
         contextualized_embeddings=self.bilstm(text_embeddings)
 
         # span_representation
+        span_mask = (spans[:, :, 0] >= 0).bool()
+        spans = F.relu(spans.float()).long()
         endpoint_span_embeddings = self._endpoint_span_extractor(contextualized_embeddings.contiguous(), spans.contiguous())
         attended_span_embeddings = self._attentive_span_extractor(text_embeddings.contiguous(), spans.contiguous())
         span_embeddings = torch.cat([endpoint_span_embeddings, attended_span_embeddings], -1)
@@ -78,31 +81,20 @@ class Bert4FnJoint(BaseModule):
         output_nodes = {'loss': 0}
         output_edges = {'loss': 0}
 
-        # if self._loss_weights['node'] > 0:
-        #     output_nodes = self._node_builder(
-        #         spans, span_mask, span_embeddings,
-        #         node_type_labels=node_type_labels, node_attr_labels=node_attr_labels)
+
+        # output_nodes = self._node_builder(
+        #     spans, span_mask, span_embeddings,
+        #     node_type_labels=node_type_labels, node_attr_labels=node_attr_labels)
         #
-        # if self._loss_weights["edge"] > 0:
-        #     output_edges = self._edge_builder(
-        #         spans, span_mask, span_embeddings, sequence_lengths, output_nodes,
-        #         self._ontology.simple_lu_frame_map, self._ontology.frame_fe_map,
-        #         p2p_edge_labels, p2r_edge_labels, metadata)
+        #
+        # output_edges = self._edge_builder(
+        #     spans, span_mask, span_embeddings, raw_words_len, output_nodes,
+        #     self._ontology.simple_lu_frame_map, self._ontology.frame_fe_map,
+        #     p2p_edge_labels, p2r_edge_labels, metadata)
         #
         # output_dict = dict(node=output_nodes, edge=output_edges)
-        # if self.training:
-        #     loss = (self._loss_weights['node'] * output_nodes['loss'] +
-        #             self._loss_weights['edge'] * output_edges['loss'])
-        #
-        #     output_dict['loss'] = loss
-
-
-
-
-
-
-        pred=0
-        return pred
+        # output_dict['loss'] = output_nodes['loss'] +output_edges['loss']
+        return 0
 
 
     def loss(self, batch, loss_function):
@@ -114,7 +106,7 @@ class Bert4FnJoint(BaseModule):
         masks=torch.LongTensor(batch["token_masks"]).to(self.device)
         head_indexes=torch.LongTensor(batch["head_indexes"]).to(self.device)
         for i in range(batch_size):
-            batch["spans"][i]=batch["spans"][i]+(max_spans_len-spans_len[i])*[(0,0)]
+            batch["spans"][i]=batch["spans"][i]+(max_spans_len-spans_len[i])*[(-1,-1)]
         spans= torch.LongTensor(batch["spans"]).to(self.device)
         node_type_labels_list=batch["node_type_labels_list"]
         node_attr_labels_list=batch["node_attr_labels_list"]
