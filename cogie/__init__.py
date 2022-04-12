@@ -31,8 +31,8 @@ __all__ = [
     "MLP",
     "EndpointSpanExtractor",
     "SelfAttentiveSpanExtractor",
-    # "EdgeBuilder",
-    # "NodeBuilder",
+    "EdgeBuilder",
+    "NodeBuilder",
 
     "BaseModule",
     "BaseFunction",

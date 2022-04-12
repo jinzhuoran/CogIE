@@ -5,8 +5,7 @@ from transformers import  AutoModel
 from cogie.modules.encoder import LSTM
 import torch.nn.functional as F
 from allennlp.modules.span_extractors import EndpointSpanExtractor, SelfAttentiveSpanExtractor
-# from cogie.modules.decoder import NodeBuilder
-# from cogie.modules.decoder import EdgeBuilder
+from cogie.modules.decoder import NodeBuilder,EdgeBuilder
 class Bert4FnJoint(BaseModule):
     def __init__(self,
                  node_types_vocabulary=None,
@@ -98,9 +97,9 @@ class Bert4FnJoint(BaseModule):
         #     spans, span_mask, span_embeddings, raw_words_len, output_nodes,
         #     self._ontology.simple_lu_frame_map, self._ontology.frame_fe_map,
         #     p2p_edge_labels, p2r_edge_labels, metadata)
-        #
-        # output_dict = dict(node=output_nodes, edge=output_edges)
-        # output_dict['loss'] = output_nodes['loss'] +output_edges['loss']
+
+        output_dict = dict(node=output_nodes, edge=output_edges)
+        output_dict['loss'] = output_nodes['loss'] +output_edges['loss']
         return 0
 
 
