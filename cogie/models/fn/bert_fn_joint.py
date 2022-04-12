@@ -7,9 +7,12 @@ import torch.nn.functional as F
 from allennlp.modules.span_extractors import EndpointSpanExtractor, SelfAttentiveSpanExtractor
 # from cogie.modules.decoder import NodeBuilder
 # from cogie.modules.decoder import EdgeBuilder
-
 class Bert4FnJoint(BaseModule):
     def __init__(self,
+                 node_types_vocabulary=None,
+                 node_attrs_vocabulary=None,
+                 p2p_edges_vocabulary=None,
+                 p2r_edges_vocabulary=None,
                  bilstm_hidden_embedding_dim=200,
                  lexical_dropout=0.5,
                  lstm_dropout=0.4,
@@ -19,6 +22,10 @@ class Bert4FnJoint(BaseModule):
                  device=torch.device("cuda")
                  ):
         super().__init__()
+        self.node_types_vocabulary = node_types_vocabulary
+        self.node_attrs_vocabulary = node_attrs_vocabulary
+        self.p2p_edges_vocabulary = p2p_edges_vocabulary
+        self.p2r_edges_vocabulary = p2r_edges_vocabulary
         self.bilstm_hidden_embedding_dim=bilstm_hidden_embedding_dim
         self.lexical_dropout=lexical_dropout
         self.lstm_dropout=lstm_dropout

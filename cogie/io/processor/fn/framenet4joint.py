@@ -9,15 +9,64 @@ from transformers import BertTokenizer
 from tqdm import tqdm
 import os
 import xml.etree.ElementTree as ElementTree
-
+from cogie.utils import Vocabulary
 
 class FrameNet4JointProcessor:
-    def __init__(self,path,max_span_width = 15, bert_model='bert-base-cased', max_length=128):
-        self.max_span_width = max_span_width
-        self.tokenizer = BertTokenizer.from_pretrained(bert_model)
+    def __init__(self,
+                 node_types_label_list=None,
+                 node_attrs_label_list=None,
+                 p2p_edges_label_list=None,
+                 p2r_edges_label_list=None,
+                 path=None,bert_model='bert-base-cased',max_span_width = 15, max_length=128):
+        self.path = path
+        self.bert_model = bert_model
         self.max_length = max_length
-        self.path=path
+        self.tokenizer = BertTokenizer.from_pretrained(bert_model)
+        self.max_span_width = max_span_width
         self._ontology = FrameOntology(self.path)
+
+
+        if node_types_label_list:
+            self.node_types_vocabulary = Vocabulary(padding="O", unknown=None)
+            self.node_types_vocabulary.add_word_lst(node_types_label_list)
+            self.node_types_vocabulary.build_vocab()
+            self.node_types_vocabulary.save(os.path.join(path, 'node_types_vocabulary.txt'))
+        else:
+            self.node_types_vocabulary = Vocabulary.load(os.path.join(path, 'node_types_vocabulary.txt'))
+
+        if node_attrs_label_list:
+            self.node_attrs_vocabulary = Vocabulary(padding="O", unknown=None)
+            self.node_attrs_vocabulary.add_word_lst(node_attrs_label_list)
+            self.node_attrs_vocabulary.build_vocab()
+            self.node_attrs_vocabulary.save(os.path.join(path, 'node_attrs_vocabulary.txt'))
+        else:
+            self.node_attrs_vocabulary = Vocabulary.load(os.path.join(path, 'node_attrs_vocabulary.txt'))
+
+        if p2p_edges_label_list:
+            self.p2p_edges_vocabulary = Vocabulary(padding=None, unknown=None)
+            self.p2p_edges_vocabulary.add_word_lst(p2p_edges_label_list)
+            self.p2p_edges_vocabulary.build_vocab()
+            self.p2p_edges_vocabulary.save(os.path.join(path, 'p2p_edges_vocabulary.txt'))
+        else:
+            self.p2p_edges_vocabulary = Vocabulary.load(os.path.join(path, 'p2p_edges_vocabulary.txt'))
+
+        if p2r_edges_label_list:
+            self.p2r_edges_vocabulary = Vocabulary(padding=None, unknown=None)
+            self.p2r_edges_vocabulary.add_word_lst(p2r_edges_label_list)
+            self.p2r_edges_vocabulary.build_vocab()
+            self.p2r_edges_vocabulary.save(os.path.join(path, 'p2r_edges_vocabulary.txt'))
+        else:
+            self.p2r_edges_vocabulary = Vocabulary.load(os.path.join(path, 'p2r_edges_vocabulary.txt'))
+
+
+    def get_node_types_vocabulary(self):
+        return self.node_types_vocabulary
+    def get_node_attrs_vocabulary(self):
+        return self.node_attrs_vocabulary
+    def get_p2p_edges_vocabulary(self):
+        return self.p2p_edges_vocabulary
+    def get_p2r_edges_vocabulary(self):
+        return self.p2r_edges_vocabulary
 
     def process(self, dataset):
         datable = DataTable()

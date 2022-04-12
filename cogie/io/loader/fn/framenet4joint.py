@@ -1,17 +1,13 @@
 import os
-from ..loader import Loader
 import json
 from cogie.core import DataTable
 
-class FrameNet4JointLoader(Loader):
+class FrameNet4JointLoader:
     def __init__(self):
-        super().__init__()
         self.node_types_set = set()
         self.node_attrs_set = set()
         self.p2p_edges_set=set()
         self.p2r_edges_set=set()
-        self.node_types_set.add('O')
-        self.node_attrs_set.add('O')
 
     def _load(self, path):
         dataset = DataTable()
