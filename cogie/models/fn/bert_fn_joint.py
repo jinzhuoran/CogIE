@@ -88,19 +88,19 @@ class Bert4FnJoint(BaseModule):
         output_edges = {'loss': 0}
 
 
-        # output_nodes = self._node_builder(
-        #     spans, span_mask, span_embeddings,
-        #     node_type_labels=node_type_labels, node_attr_labels=node_attr_labels)
-        #
-        #
-        # output_edges = self._edge_builder(
-        #     spans, span_mask, span_embeddings, raw_words_len, output_nodes,
-        #     self._ontology.simple_lu_frame_map, self._ontology.frame_fe_map,
-        #     p2p_edge_labels, p2r_edge_labels, metadata)
+        output_nodes = self._node_builder(
+            spans, span_mask, span_embeddings,
+            node_type_labels=node_type_labels, node_attr_labels=node_attr_labels)
+
+
+        output_edges = self._edge_builder(
+            spans, span_mask, span_embeddings, raw_words_len, output_nodes,
+            self._ontology.simple_lu_frame_map, self._ontology.frame_fe_map,
+            p2p_edge_labels, p2r_edge_labels, metadata)
 
         output_dict = dict(node=output_nodes, edge=output_edges)
         output_dict['loss'] = output_nodes['loss'] +output_edges['loss']
-        return 0
+        return output_dict
 
 
     def loss(self, batch, loss_function):
@@ -120,14 +120,8 @@ class Bert4FnJoint(BaseModule):
         valid_p2r_edges_list=batch["valid_p2r_edges_list"]
         p2p_edge_labels_and_indices=batch["p2p_edge_labels_and_indices"]
         p2r_edge_labels_and_indices=batch["p2r_edge_labels_and_indices"]
-        pred=self.forward(tokens_x,masks,head_indexes,spans,raw_words_len)
-        # text = batch[0]
-        # ner_label = batch[1].to(self.device)
-        # re_label = batch[2].to(self.device)
-        # mask = batch[3].to(self.device)
-        # ner_pred, re_pred = self.forward(text, mask)
-        # loss = loss_function(ner_pred, ner_label, re_pred, re_label)
-        # return loss
+        output_dict=self.forward(tokens_x,masks,head_indexes,spans,raw_words_len)
+        return output_dict['loss']
 
     def evaluate(self, batch, metrics):
         pass

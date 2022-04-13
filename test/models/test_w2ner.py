@@ -1,26 +1,25 @@
+import json
+import json
 import logging
-
-import cogie
+import numpy as np
+import prettytable as pt
+import random
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import RandomSampler
-from cogie.io.loader.ner.conll2003 import Conll2003NERLoader
-from cogie.io.processor.ner.conll2003 import Conll2003NERProcessor,Conll2003W2NERProcessor
-from cogie.models.ner.w2ner import W2NER
-import json
-from argparse import Namespace
-import json
 import transformers
-
+from argparse import Namespace
 from sklearn.metrics import precision_recall_fscore_support, f1_score
 from torch.utils.data import DataLoader
+from torch.utils.data import RandomSampler
 from tqdm import tqdm
-import prettytable as pt
 
-import random
-import numpy as np
+import cogie
+from cogie.io.loader.ner.conll2003 import Conll2003NERLoader
+from cogie.io.processor.ner.conll2003 import Conll2003NERProcessor, Conll2003W2NERProcessor
+from cogie.models.ner.w2ner import W2NER
 from cogie.utils import seed_everything
+
 init_seed = 123
 seed_everything(init_seed)
 
@@ -34,7 +33,7 @@ vocabulary = cogie.Vocabulary.load('../../../cognlp/data/ner/conll2003/data/voca
 # vocabulary.word2idx = {'<pad>': 0, '<suc>': 1, 'b-org': 2, 'b-misc': 3, 'b-per': 4, 'i-per': 5, 'b-loc': 6, 'i-org': 7, 'i-misc': 8, 'i-loc': 9}
 
 processor = Conll2003W2NERProcessor(label_list=loader.get_labels(), path='../../../cognlp/data/ner/conll2003/data/',
-                                  bert_model='bert-large-cased',max_length=256)
+                                    bert_model='bert-large-cased', max_length=256)
 train_datable = processor.process(train_data)
 train_dataset = cogie.DataTableSet(train_datable)
 train_sampler = RandomSampler(train_dataset)
@@ -49,11 +48,11 @@ test_datable = processor.process(test_data)
 test_dataset = cogie.DataTableSet(test_datable)
 test_sampler = RandomSampler(test_dataset)
 
-with open("./conll03.json","r") as f:
+with open("./conll03.json", "r") as f:
     config = json.load(f)
 config = Namespace(**config)
 config.label_num = len(vocabulary.word2idx)
-print("label num:",config.label_num)
+print("label num:", config.label_num)
 config.vocab = vocabulary
 model = W2NER(config)
 
@@ -82,8 +81,8 @@ params = [
 updates_total = len(train_dataset) // config.batch_size * config.epochs
 optimizer = transformers.AdamW(params, lr=config.learning_rate, weight_decay=config.weight_decay)
 scheduler = transformers.get_linear_schedule_with_warmup(optimizer,
-                                                              num_warmup_steps=config.warm_factor * updates_total,
-                                                              num_training_steps=updates_total)
+                                                         num_warmup_steps=config.warm_factor * updates_total,
+                                                         num_training_steps=updates_total)
 
 trainer = cogie.Trainer(model,
                         train_dataset,
@@ -105,7 +104,7 @@ trainer = cogie.Trainer(model,
                         scheduler_steps=1,
                         validate_steps=500,
                         save_steps=None,
-                        grad_norm=1,# 梯度裁减
+                        grad_norm=1,  # 梯度裁减
                         use_tqdm=True,
                         device=device,
                         device_ids=[0],
@@ -119,7 +118,6 @@ trainer = cogie.Trainer(model,
                         logger_path='../../../cognlp/data/ner/conll2003/logger')
 
 trainer.train()
-
 
 # def squeeze_data(data,num=2):
 #     data.datas["sentence"] = data.datas["sentence"][:2]
@@ -150,5 +148,3 @@ trainer.train()
 # convert_to_json(train_data,"train.json")
 # convert_to_json(dev_data,"dev.json")
 # convert_to_json(test_data,"test.json")
-
-
