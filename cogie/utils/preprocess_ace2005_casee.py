@@ -43,7 +43,7 @@ def process_ace2005_for_casee(raw_data_path,processed_data_path):
                 if len(line_dict["golden-event-mentions"])==0:
                     new_line_dict["content"] = line_dict["words"]
                     new_line_dict["index"] = -1
-                    new_line_dict["type"] ="<unk>"
+                    new_line_dict["type"] ="O"
                     new_line_dict["args"] = {}
                     new_line_dict["occur"] = []
                     new_line_dict["triggers"] = []
