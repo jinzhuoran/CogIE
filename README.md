@@ -10,8 +10,9 @@
 
 ## What's New?
 - Apr 2022: A series of updates are coming soon!
-- Apr 2022: We have supported joint entity and relation extraction according to [PFN](https://github.com/Coopercoppers/PFN).
-- Mar 2022: We have supported entity linking according to [BLINK](https://github.com/facebookresearch/BLINK).
+- Apr 13 2022: We have supported Unified Named Entity Recognition according to [W2NER](https://github.com/ljynlp/W2NER).
+- Apr 1 2022: We have supported Joint Entity and Relation Extraction according to [PFN](https://github.com/Coopercoppers/PFN).
+- Mar 30 2022: We have supported Entity Linking according to [BLINK](https://github.com/facebookresearch/BLINK).
 
 
 ## What's CogIE doing?
@@ -155,4 +156,3 @@ trainer = cogie.Trainer(model,
 
 trainer.train()
 ```
-

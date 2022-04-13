@@ -1,10 +1,10 @@
+import prettytable as pt
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from sklearn.metrics import precision_recall_fscore_support, f1_score
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from transformers import AutoModel
-from sklearn.metrics import precision_recall_fscore_support, f1_score
-import prettytable as pt
 
 
 class LayerNorm(nn.Module):
@@ -210,7 +210,7 @@ class W2NER(nn.Module):
 
         self.cln = LayerNorm(config.lstm_hid_size, config.lstm_hid_size, conditional=True)
 
-    def forward(self, bert_inputs,attention_masks, grid_mask2d, dist_inputs, pieces2word, sent_length):
+    def forward(self, bert_inputs, attention_masks, grid_mask2d, dist_inputs, pieces2word, sent_length):
         '''
         :param bert_inputs: [B, L']
         :param attention_masks: [B,L']
@@ -221,7 +221,7 @@ class W2NER(nn.Module):
         :return:
         '''
         # bert_embs = self.bert(input_ids=bert_inputs, attention_mask=bert_inputs.ne(0).float())
-        bert_embs = self.bert(input_ids=bert_inputs,attention_mask=attention_masks)
+        bert_embs = self.bert(input_ids=bert_inputs, attention_mask=attention_masks)
         if self.use_bert_last_4_layers:
             bert_embs = torch.stack(bert_embs[2][-4:], dim=-1).mean(-1)
         else:
@@ -263,10 +263,10 @@ class W2NER(nn.Module):
             loss_function=None,
     ):
         batch = [data.cuda() for data in batch]
-        bert_inputs, attention_masks,grid_labels, grid_mask2d, pieces2word, dist_inputs, sent_length = batch
-        outputs = self.forward(bert_inputs, attention_masks,grid_mask2d, dist_inputs,pieces2word, sent_length)
+        bert_inputs, attention_masks, grid_labels, grid_mask2d, pieces2word, dist_inputs, sent_length = batch
+        outputs = self.forward(bert_inputs, attention_masks, grid_mask2d, dist_inputs, pieces2word, sent_length)
         grid_mask2d = grid_mask2d.clone()
-        loss = loss_function(outputs[grid_mask2d],grid_labels[grid_mask2d])
+        loss = loss_function(outputs[grid_mask2d], grid_labels[grid_mask2d])
         return loss
 
     # def evaluate(self,progress):
@@ -303,16 +303,14 @@ class W2NER(nn.Module):
     ):
         batch = [data.cuda() for data in batch]
         bert_inputs, attention_masks, grid_labels, grid_mask2d, pieces2word, dist_inputs, sent_length = batch
-        outputs =self.forward(bert_inputs, attention_masks,grid_mask2d, dist_inputs,pieces2word, sent_length)
+        outputs = self.forward(bert_inputs, attention_masks, grid_mask2d, dist_inputs, pieces2word, sent_length)
         grid_mask2d = grid_mask2d.clone()
         outputs = torch.argmax(outputs, -1)
         grid_labels = grid_labels[grid_mask2d].contiguous().view(-1)
         outputs = outputs[grid_mask2d].contiguous().view(-1)
-        metrics.evaluate(outputs,grid_labels)
+        metrics.evaluate(outputs, grid_labels)
         # return outputs, grid_labels
 
         # input_ids, attention_mask, segment_ids, valid_masks, label_ids, label_masks = batch
         # prediction, valid_len = self.predict(batch)
         # metrics.evaluate(prediction, label_ids, valid_len)
-
-
