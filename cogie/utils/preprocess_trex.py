@@ -6,7 +6,7 @@ import random
 
 input_path = "/data/hongbang/cognlp/data/ner/trex/data/full_data"
 output_path = "/data/hongbang/cognlp/data/ner/trex/data/processed_data"
-num = 10
+num = 20
 train,dev,test = 8,1,1
 
 def load_json(file_path):
@@ -46,7 +46,7 @@ dev_prop = int(float(dev) / (train + dev + test) * length)
 
 train_datas = all_datas[:train_prop]
 dev_datas = all_datas[train_prop:train_prop+dev_prop]
-test_datas = all_datas[dev_prop:]
+test_datas = all_datas[train_prop+dev_prop:]
 
 print("Write the result to files...")
 processed_datas = [train_datas,dev_datas,test_datas]
@@ -54,5 +54,5 @@ file_names = ["train.json","dev.json","test.json"]
 for i,file_name in enumerate(file_names):
     with open(os.path.join(output_path,file_name),"w") as f:
         json.dump(processed_datas[i],f)
-
+print("Finished Preprocessing!")
 
