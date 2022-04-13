@@ -54,4 +54,5 @@ __all__ = [
 
     "PFN",
     "Bert4FnJoint",
+    "CasEE",
 ]

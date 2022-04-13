@@ -2,6 +2,7 @@ from torch import nn
 import math
 import torch
 from cogie.models import BaseModule
+from transformers import BertModel
 
 
 def gelu(x):
@@ -242,28 +243,33 @@ class ArgsRec(nn.Module):
 
 
 class CasEE(BaseModule):
-    def __init__(self, config, model_weight, pos_emb_size):
+    def __init__(self, config,  pos_emb_size,args_num,type_num,device,bert_model='bert-base-cased',multi_piece="average"):
         super(CasEE, self).__init__()
-        self.bert = model_weight
+        self.config=config
+        self.bert_model=bert_model
+        self.bert =BertModel.from_pretrained(self.bert_model)
+        self.multi_piece=multi_piece
+        self.device=device
 
-        self.config = config
-        self.args_num = config.args_num
+        config.args_num= args_num
+        config.type_num = type_num
+        config.hidden_size=768
+
         self.text_seq_len = config.seq_length
 
         self.type_cls = TypeCls(config)
         self.trigger_rec = TriggerRec(config, config.hidden_size)
-        self.args_rec = ArgsRec(config, config.hidden_size, self.args_num, self.text_seq_len, pos_emb_size)
+        self.args_rec = ArgsRec(config, config.hidden_size, self.config.args_num, self.text_seq_len, pos_emb_size)
         self.dropout = nn.Dropout(config.decoder_dropout)
 
         self.loss_0 = nn.BCELoss(reduction='none')
         self.loss_1 = nn.BCELoss(reduction='none')
         self.loss_2 = nn.BCELoss(reduction='none')
 
-    def forward(self, tokens, segment, mask, type_id, type_vec, trigger_s_vec, trigger_e_vec, relative_pos, trigger_mask, args_s_vec, args_e_vec, args_mask):
+    def forward(self, tokens,  mask, head_indexes,type_id, type_vec, trigger_s_vec, trigger_e_vec, relative_pos, trigger_mask, args_s_vec, args_e_vec, args_mask):
         '''
 
         :param tokens: [b, t]
-        :param segment: [b, t]
         :param mask: [b, t], 0 if masked
         :param trigger_s: [b, t]
         :param trigger_e: [b, t]
@@ -278,15 +284,20 @@ class CasEE(BaseModule):
         outputs = self.bert(
             tokens,
             attention_mask=mask,
-            token_type_ids=segment,
             position_ids=None,
             head_mask=None,
             inputs_embeds=None,
             output_attentions=None,
             output_hidden_states=None,
         )
-
         output_emb = outputs[0]
+
+        batch_size =tokens.shape[0]
+
+        for i in range(batch_size):
+            output_emb[i] = torch.index_select(output_emb[i], 0,head_indexes[i])
+
+
         p_type, type_emb = self.type_cls(output_emb, mask)
         p_type = p_type.pow(self.config.pow_0)
         type_loss = self.loss_0(p_type, type_vec)
@@ -322,13 +333,100 @@ class CasEE(BaseModule):
         loss = type_loss + trigger_loss + args_loss
         return loss, type_loss, trigger_loss, args_loss
 
-    def plm(self, tokens, segment, mask):
+
+    def encode(self, piece_idxs, attention_masks, token_lens):
+        """Encode input sequences with BERT
+        :param piece_idxs (LongTensor): word pieces indices
+        :param attention_masks (FloatTensor): attention mask
+        :param token_lens (list): token lengths
+         """
+        batch_size, _ = piece_idxs.size()
+        all_bert_outputs = self.bert(piece_idxs, attention_mask=attention_masks)
+        bert_outputs = all_bert_outputs[0]
+
+        if self.use_extra_bert:
+            extra_bert_outputs = all_bert_outputs[2][self.extra_bert]
+            bert_outputs = torch.cat([bert_outputs, extra_bert_outputs], dim=2)
+
+        if self.multi_piece == 'first':
+            # select the first piece for multi-piece words
+            offsets = self.token_lens_to_offsets(token_lens)
+            offsets = piece_idxs.new(offsets)
+            # + 1 because the first vector is for [CLS]
+            offsets = offsets.unsqueeze(-1).expand(batch_size, -1, self.bert_dim) + 1
+            bert_outputs = torch.gather(bert_outputs, 1, offsets)
+        elif self.multi_piece == 'average':# average all pieces for multi-piece words
+            idxs, masks, token_num, token_len = self.token_lens_to_idxs(token_lens)
+            idxs = piece_idxs.new(idxs).unsqueeze(-1).expand(batch_size, -1, self.bert_dim) + 1
+            masks = bert_outputs.new(masks).unsqueeze(-1)
+            bert_outputs = torch.gather(bert_outputs, 1, idxs) * masks
+            bert_outputs = bert_outputs.view(batch_size, token_num, token_len, self.bert_dim)
+            bert_outputs = bert_outputs.sum(2)
+        else:
+            raise ValueError('Unknown multi-piece token handling strategy: {}'.format(self.multi_piece))
+        bert_outputs = self.bert_dropout(bert_outputs)
+        return bert_outputs
+
+    def token_lens_to_idxs(self,token_lens):
+        """Map token lengths to a word piece index matrix (for torch.gather) and a
+        mask tensor.
+        For example (only show a sequence instead of a batch):
+
+        token lengths: [1,1,1,3,1]
+        =>
+        indices: [[0,0,0], [1,0,0], [2,0,0], [3,4,5], [6,0,0]]
+        masks: [[1.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 0.0, 0.0],
+                [0.33, 0.33, 0.33], [1.0, 0.0, 0.0]]
+
+        Next, we use torch.gather() to select vectors of word pieces for each token,
+        and average them as follows (incomplete code):
+
+        outputs = torch.gather(bert_outputs, 1, indices) * masks
+        outputs = bert_outputs.view(batch_size, seq_len, -1, self.bert_dim)
+        outputs = bert_outputs.sum(2)
+
+        :param token_lens (list): token lengths.
+        :return: a index matrix and a mask tensor.
+        """
+        max_token_num = max([len(x) for x in token_lens])
+        max_token_len = max([max(x) for x in token_lens])
+        idxs, masks = [], []
+        for seq_token_lens in token_lens:
+            seq_idxs, seq_masks = [], []
+            offset = 0
+            for token_len in seq_token_lens:
+                seq_idxs.extend([i + offset for i in range(token_len)]
+                                + [-1] * (max_token_len - token_len))
+                seq_masks.extend([1.0 / token_len] * token_len
+                                 + [0.0] * (max_token_len - token_len))
+                offset += token_len
+            seq_idxs.extend([-1] * max_token_len * (max_token_num - len(seq_token_lens)))
+            seq_masks.extend([0.0] * max_token_len * (max_token_num - len(seq_token_lens)))
+            idxs.append(seq_idxs)
+            masks.append(seq_masks)
+        return idxs, masks, max_token_num, max_token_len
+
+    def token_lens_to_offsets(self,token_lens):
+        """Map token lengths to first word piece indices, used by the sentence
+        encoder.
+        :param token_lens (list): token lengths (word piece numbers)
+        :return (list): first word piece indices (offsets)
+        """
+        max_token_num = max([len(x) for x in token_lens])
+        offsets = []
+        for seq_token_lens in token_lens:
+            seq_offsets = [0]
+            for l in seq_token_lens[:-1]:
+                seq_offsets.append(seq_offsets[-1] + l)
+            offsets.append(seq_offsets + [-1] * (max_token_num - len(seq_offsets)))
+        return offsets
+
+    def plm(self, tokens,  mask):
         assert tokens.size(0) == 1
 
         outputs = self.bert(
             tokens,
             attention_mask=mask,
-            token_type_ids=segment,
             position_ids=None,
             head_mask=None,
             inputs_embeds=None,
@@ -362,12 +460,25 @@ class CasEE(BaseModule):
         mask = mask.unsqueeze(-1).expand_as(p_s).float()  # [b, t, l]
         p_s = p_s.mul(mask)
         p_e = p_e.mul(mask)
-        p_s = p_s.view(self.text_seq_len, self.args_num).data.cpu().numpy()
-        p_e = p_e.view(self.text_seq_len, self.args_num).data.cpu().numpy()
+        p_s = p_s.view(self.text_seq_len, self.config.args_num).data.cpu().numpy()
+        p_e = p_e.view(self.text_seq_len, self.cnofig.args_num).data.cpu().numpy()
         return p_s, p_e, type_soft_constrain
 
     def loss(self, batch, loss_function):
-        pass
+        token = torch.LongTensor(batch["tokens_x"]).to(self.device)
+        mask = torch.LongTensor(batch["token_masks"]).to(self.device)
+        head_indexes = torch.LongTensor(batch["head_indexes"]).to(self.device)
+        d_t = torch.LongTensor(batch["data_type_id"]).to(self.device)
+        t_v = torch.FloatTensor(batch["type_vec"]).to(self.device)
+        t_s = torch.FloatTensor(batch["t_s"]).to(self.device)
+        t_e = torch.FloatTensor(batch["t_e"]).to(self.device)
+        r_pos = torch.LongTensor(batch["r_pos"]).to(self.device)
+        t_m = torch.LongTensor(batch["t_m"]).to(self.device)
+        a_s = torch.FloatTensor(batch["a_s"]).to(self.device)
+        a_e = torch.FloatTensor(batch["a_e"]).to(self.device)
+        a_m = torch.LongTensor(batch["a_m"]).to(self.device)
+        loss=self.forward(token,mask,head_indexes, d_t, t_v, t_s, t_e, r_pos, t_m, a_s, a_e, a_m)[0]
+        return loss
 
     def evaluate(self, batch, metrics):
         pass

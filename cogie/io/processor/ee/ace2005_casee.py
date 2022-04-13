@@ -78,7 +78,8 @@ class ACE2005CASEEProcessor:
                 tokens_x.extend(tokens_xx)
                 is_heads.extend(is_head)
             token_masks = [True] * len(tokens_x) + [False] * (self.max_length - len(tokens_x))
-            tokens_x = tokens_x + [0] * (self.max_length - len(tokens_x))
+            token_masks=token_masks[: self.max_length]
+            tokens_x = tokens_x[:self.max_length] + [0] * (self.max_length - len(tokens_x))
             for i in range(len(is_heads)):
                 if is_heads[i]:
                     head_indexes.append(i)
@@ -125,9 +126,8 @@ class ACE2005CASEEProcessor:
                 for span in args[args_name]:
                     args_s[s_r_i][span[0] + 1] = 1
                     args_e[e_r_i][span[1] + 1 - 1] = 1
-
-
-
+            if len(tokens_x)>128:
+                print( len(tokens_x))
             datable("tokens_x", tokens_x)
             datable("token_masks", token_masks)
             datable("head_indexes", head_indexes)
@@ -142,7 +142,7 @@ class ACE2005CASEEProcessor:
             datable("a_e", args_e)
             datable("a_m", arg_mask)
 
-        print("end")
+        return datable
 
 
     def process_dev(self, dataset):
@@ -152,3 +152,10 @@ class ACE2005CASEEProcessor:
                          dataset["args"], dataset["occur"], dataset["triggers"]), total=len(dataset['words'])):
             pass
         return datable
+
+    def get_trigger_vocabulary(self):
+        return self.trigger_vocabulary
+
+    def get_argument_vocabulary(self):
+        return self.argument_vocabulary
+
