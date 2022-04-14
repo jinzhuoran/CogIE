@@ -2,7 +2,6 @@ from cogie import *
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from cogie.core.metrics import EventMetric
 from cogie.core.trainer import Trainer
 from cogie.io.loader.ee.ace2005_casee import ACE2005CASEELoader
 from cogie.io.processor.ee.ace2005_casee import ACE2005CASEEProcessor
@@ -74,23 +73,25 @@ train_dataset = DataTableSet(train_datable, to_device=False)
 
 dev_datable = processor.process_dev(dev_data)
 dev_dataset = DataTableSet(dev_datable, to_device=False)
-#
-# test_datable = processor.process(test_data)
-# test_dataset = DataTableSet(test_datable, to_device=False)
-#
+
+test_datable = processor.process_test(test_data)
+test_dataset = DataTableSet(test_datable, to_device=False)
+
 model =CasEE(config,
              type_num=len(processor.get_trigger_vocabulary()),
              args_num=len(processor.get_argument_vocabulary()),
              bert_model='bert-base-cased', pos_emb_size=64,
              device=device,
              schema_id=processor.schema_id)
-loss = None
+loss = {"loss_0":nn.BCELoss(reduction='none'),
+        "loss_1":nn.BCELoss(reduction='none'),
+        "loss_2":nn.BCELoss(reduction='none')}
 optimizer = optim.Adam(model.parameters(), lr=0.00005)
 metric = CASEEMetric()
 
 trainer = Trainer(model,
                   train_dataset,
-                  dev_data=dev_dataset,
+                  dev_data=test_dataset,
                   n_epochs=100,
                   batch_size=20,
                   dev_batch_size=1,
@@ -105,14 +106,14 @@ trainer = Trainer(model,
                   save_file=None,
                   print_every=None,
                   scheduler_steps=None,
-                  validate_steps=1,
+                  validate_steps=500,
                   save_steps=1000,
                   grad_norm=1.0,
                   use_tqdm=True,
                   device=device,
                   device_ids=[4],
                   collate_fn=train_dataset.to_dict,
-                  dev_collate_fn=dev_dataset.to_dict,
+                  dev_collate_fn=test_dataset.to_dict,
                   callbacks=None,
                   metric_key=None,
                   writer_path='../../../cognlp/data/ee/ace2005casee/tensorboard',

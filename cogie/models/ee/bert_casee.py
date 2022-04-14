@@ -266,11 +266,7 @@ class CasEE(BaseModule):
         self.args_rec = ArgsRec(config, config.hidden_size, self.config.args_num, self.text_seq_len, pos_emb_size)
         self.dropout = nn.Dropout(config.decoder_dropout)
 
-        self.loss_0 = nn.BCELoss(reduction='none')
-        self.loss_1 = nn.BCELoss(reduction='none')
-        self.loss_2 = nn.BCELoss(reduction='none')
-
-    def forward(self, tokens,  mask, head_indexes,type_id, type_vec, trigger_s_vec, trigger_e_vec, relative_pos, trigger_mask, args_s_vec, args_e_vec, args_mask):
+    def forward(self, tokens,  mask, head_indexes,type_id, type_vec, trigger_s_vec, trigger_e_vec, relative_pos, trigger_mask, args_s_vec, args_e_vec, args_mask,loss_function):
         '''
 
         :param tokens: [b, t]
@@ -304,7 +300,7 @@ class CasEE(BaseModule):
 
         p_type, type_emb = self.type_cls(output_emb, mask)
         p_type = p_type.pow(self.config.pow_0)
-        type_loss = self.loss_0(p_type, type_vec)
+        type_loss = loss_function["loss_0"](p_type, type_vec)
         type_loss = torch.sum(type_loss)
 
         event_flag=type_id!=-1
@@ -333,8 +329,8 @@ class CasEE(BaseModule):
             p_e = p_e.pow(self.config.pow_1)
             p_s = p_s.squeeze(-1)
             p_e = p_e.squeeze(-1)
-            trigger_loss_s = self.loss_1(p_s, trigger_s_vec)
-            trigger_loss_e = self.loss_1(p_e, trigger_e_vec)
+            trigger_loss_s =  loss_function["loss_1"](p_s, trigger_s_vec)
+            trigger_loss_e =  loss_function["loss_1"](p_e, trigger_e_vec)
             mask_t = mask.float()  # [b, t]
             trigger_loss_s = torch.sum(trigger_loss_s.mul(mask_t))
             trigger_loss_e = torch.sum(trigger_loss_e.mul(mask_t))
@@ -342,8 +338,8 @@ class CasEE(BaseModule):
             p_s, p_e, type_soft_constrain = self.args_rec(text_rep_type, relative_pos, trigger_mask, mask, type_rep)
             p_s = p_s.pow(self.config.pow_2)
             p_e = p_e.pow(self.config.pow_2)
-            args_loss_s = self.loss_2(p_s, args_s_vec.transpose(1, 2))  # [b, t, l]
-            args_loss_e = self.loss_2(p_e, args_e_vec.transpose(1, 2))
+            args_loss_s =  loss_function["loss_2"](p_s, args_s_vec.transpose(1, 2))  # [b, t, l]
+            args_loss_e =  loss_function["loss_2"](p_e, args_e_vec.transpose(1, 2))
             mask_a = mask.unsqueeze(-1).expand_as(args_loss_s).float()  # [b, t, l]
             args_loss_s = torch.sum(args_loss_s.mul(mask_a))
             args_loss_e = torch.sum(args_loss_e.mul(mask_a))
@@ -492,19 +488,19 @@ class CasEE(BaseModule):
         return p_s, p_e, type_soft_constrain
 
     def loss(self, batch, loss_function):
-        token = torch.LongTensor(batch["tokens_id"]).to(self.device)
-        mask = torch.LongTensor(batch["token_masks"]).to(self.device)
-        head_indexes = torch.LongTensor(batch["head_indexes"]).to(self.device)
-        d_t = torch.LongTensor(batch["type_id"]).to(self.device)
-        t_v = torch.FloatTensor(batch["type_vec"]).to(self.device)
-        t_s = torch.FloatTensor(batch["t_s"]).to(self.device)
-        t_e = torch.FloatTensor(batch["t_e"]).to(self.device)
-        r_pos = torch.LongTensor(batch["r_pos"]).to(self.device)
-        t_m = torch.LongTensor(batch["t_m"]).to(self.device)
-        a_s = torch.FloatTensor(batch["a_s"]).to(self.device)
-        a_e = torch.FloatTensor(batch["a_e"]).to(self.device)
-        a_m = torch.LongTensor(batch["a_m"]).to(self.device)
-        loss=self.forward(token,mask,head_indexes, d_t, t_v, t_s, t_e, r_pos, t_m, a_s, a_e, a_m)[0]
+        token = torch.LongTensor(np.array(batch["tokens_id"])).to(self.device)
+        mask = torch.LongTensor(np.array(batch["token_masks"])).to(self.device)
+        head_indexes = torch.LongTensor(np.array(batch["head_indexes"])).to(self.device)
+        d_t = torch.LongTensor(np.array(batch["type_id"])).to(self.device)
+        t_v = torch.FloatTensor(np.array(batch["type_vec"])).to(self.device)
+        t_s = torch.FloatTensor(np.array(batch["t_s"])).to(self.device)
+        t_e = torch.FloatTensor(np.array(batch["t_e"])).to(self.device)
+        r_pos = torch.LongTensor(np.array(batch["r_pos"])).to(self.device)
+        t_m = torch.LongTensor(np.array(batch["t_m"])).to(self.device)
+        a_s = torch.FloatTensor(np.array(batch["a_s"])).to(self.device)
+        a_e = torch.FloatTensor(np.array(batch["a_e"])).to(self.device)
+        a_m = torch.LongTensor(np.array(batch["a_m"])).to(self.device)
+        loss=self.forward(token,mask,head_indexes, d_t, t_v, t_s, t_e, r_pos, t_m, a_s, a_e, a_m,loss_function)[0]
         return loss
 
     def evaluate(self, batch, metrics):
@@ -523,13 +519,13 @@ class CasEE(BaseModule):
         args_truth=batch["args_truth"]
         head_indexes=batch["head_indexes"]
 
-        typ_oracle = torch.LongTensor(typ_oracle).to(self.device)
-        typ_truth = torch.FloatTensor(typ_truth).to(self.device)
-        token = torch.LongTensor(token).to(self.device)
-        mask = torch.LongTensor(mask).to(self.device)
-        r_p = torch.LongTensor(r_p).to(self.device)
-        t_m = torch.LongTensor(t_m).to(self.device)
-        head_indexes = torch.LongTensor(head_indexes).to(self.device)
+        typ_oracle = torch.LongTensor(np.array(typ_oracle)).to(self.device)
+        typ_truth = torch.FloatTensor(np.array(typ_truth)).to(self.device)
+        token = torch.LongTensor(np.array(token)).to(self.device)
+        mask = torch.LongTensor(np.array(mask)).to(self.device)
+        r_p = torch.LongTensor(np.array(r_p)).to(self.device)
+        t_m = torch.LongTensor(np.array(t_m)).to(self.device)
+        head_indexes = torch.LongTensor(np.array(head_indexes)).to(self.device)
 
         if t_index[0] is not None:
 

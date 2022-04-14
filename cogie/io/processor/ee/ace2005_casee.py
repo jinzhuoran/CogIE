@@ -228,6 +228,81 @@ class ACE2005CASEEProcessor:
 
         return datable
 
+
+
+    def process_test(self, dataset):
+        datable = DataTable()
+        for content, index, type, args, occur, triggers ,id in \
+                tqdm(zip(dataset["content"], dataset["index"], dataset["type"],
+                         dataset["args"], dataset["occur"], dataset["triggers"],dataset["id"]), total=len(dataset["content"])):
+            tokens_id, is_heads, head_indexes = [], [], []
+            words = ['[CLS]'] + content + ['[SEP]']
+            for w in words:
+                tokens = self.tokenizer.tokenize(w) if w not in ['[CLS]', '[SEP]'] else [w]
+                tokens_w_id = self.tokenizer.convert_tokens_to_ids(tokens)
+                if w in ['[CLS]', '[SEP]']:
+                    is_head = [0]
+                else:
+                    is_head = [1] + [0] * (len(tokens) - 1)
+                tokens_id.extend(tokens_w_id)
+                is_heads.extend(is_head)
+            token_masks = [True] * len(tokens_id) + [False] * (self.max_length - len(tokens_id))
+            token_masks = token_masks[: self.max_length]
+            tokens_id = tokens_id + [0] * (self.max_length - len(tokens_id))
+            tokens_id = tokens_id[: self.max_length]
+            is_heads = is_heads[: self.max_length]
+            for i in range(len(is_heads)):
+                if is_heads[i]:
+                    head_indexes.append(i)
+            head_indexes = head_indexes + [0] * (self.max_length - len(head_indexes))
+            head_indexes = head_indexes[: self.max_length]
+
+            type_vec = np.array([0] * self.trigger_type_num)
+            type_id = 0
+            if type != '<unk>':
+                type_id = self.trigger_vocabulary.word2idx[type]
+                for occ in occur:
+                    idx = self.trigger_vocabulary.word2idx[occ]
+                    type_vec[idx] = 1
+
+            t_m = [0] * self.max_length
+            r_pos = list(range(-0, 0)) + [0] * (0 - 0 + 1) + list(
+                range(1, self.max_length - 0))
+            r_pos = [p + self.max_length for p in r_pos]
+            if index is not None:
+                span = triggers[index]
+                start_idx = span[0] + 1
+                end_idx = span[1] + 1 - 1
+                r_pos = list(range(-start_idx, 0)) + [0] * (end_idx - start_idx + 1) + list(
+                    range(1, self.max_length - end_idx))
+                r_pos = [p + self.max_length for p in r_pos]
+                t_m = [0] * self.max_length
+                t_m[start_idx] = 1
+                t_m[end_idx] = 1
+
+            t_index = index
+
+            triggers_truth = [(span[0] + 1, span[1] + 1 - 1) for span in triggers]  # 触发词起止列表改成左闭右闭
+            args_truth = {i: [] for i in range(self.argument_type_num)}
+            for args_name in args:
+                s_r_i = self.args_s_id[args_name + '_s']
+                for span in args[args_name]:
+                    args_truth[s_r_i].append((span[0] + 1, span[1] + 1 - 1))
+
+            datable("data_ids", id)
+            datable("type_id", type_id)
+            datable("type_vec", type_vec)
+            datable("tokens_id", tokens_id)
+            datable("token_masks", token_masks)
+            datable("t_index", t_index)
+            datable("r_pos", r_pos)
+            datable("t_m", t_m)
+            datable("triggers_truth", triggers_truth)
+            datable("args_truth", args_truth)
+            datable("head_indexes", head_indexes)
+
+        return datable
+
     def get_trigger_vocabulary(self):
         return self.trigger_vocabulary
 
