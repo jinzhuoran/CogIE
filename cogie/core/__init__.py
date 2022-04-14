@@ -24,6 +24,7 @@ __all__ = [
     "ConfusionMatrixMetric",
     "FBetaMultiLabelMetric",
     "SPOMetric",
+    "CASEEMetric",
 
     "Predictor",
     "NerPredictor",

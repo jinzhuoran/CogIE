@@ -86,13 +86,14 @@ model =CasEE(config,
              schema_id=processor.schema_id)
 loss = None
 optimizer = optim.Adam(model.parameters(), lr=0.00005)
-metric = None
+metric = CASEEMetric()
 
 trainer = Trainer(model,
                   train_dataset,
                   dev_data=dev_dataset,
                   n_epochs=100,
                   batch_size=20,
+                  dev_batch_size=1,
                   loss=loss,
                   optimizer=optimizer,
                   scheduler=None,
@@ -104,7 +105,7 @@ trainer = Trainer(model,
                   save_file=None,
                   print_every=None,
                   scheduler_steps=None,
-                  validate_steps=1000,
+                  validate_steps=1,
                   save_steps=1000,
                   grad_norm=1.0,
                   use_tqdm=True,

@@ -269,7 +269,6 @@ class CasEE(BaseModule):
         self.loss_0 = nn.BCELoss(reduction='none')
         self.loss_1 = nn.BCELoss(reduction='none')
         self.loss_2 = nn.BCELoss(reduction='none')
-        self.xxx=0
 
     def forward(self, tokens,  mask, head_indexes,type_id, type_vec, trigger_s_vec, trigger_e_vec, relative_pos, trigger_mask, args_s_vec, args_e_vec, args_mask):
         '''
@@ -508,201 +507,124 @@ class CasEE(BaseModule):
         loss=self.forward(token,mask,head_indexes, d_t, t_v, t_s, t_e, r_pos, t_m, a_s, a_e, a_m)[0]
         return loss
 
-    def evaluate(self, dev_data_loader, metrics):
+    def evaluate(self, batch, metrics):
         if hasattr(self, "module"):
             model = self.module
         self.eval()
-        # since there exists "an" idx with "several" records, we use dict to combine the results
-        type_pred_dict = {}
-        type_truth_dict = {}
-        trigger_pred_tuples_dict = {}
-        trigger_truth_tuples_dict = {}
-        args_pred_tuples_dict = {}
-        args_truth_tuples_dict = {}
+        idx=batch["data_ids"]
+        typ_oracle=batch["type_id"]
+        typ_truth=batch["type_vec"]
+        token=batch["tokens_id"]
+        mask=batch["token_masks"]
+        t_index=batch["t_index"]
+        r_p=batch["r_pos"]
+        t_m=batch["t_m"]
+        tri_truth=batch["triggers_truth"]
+        args_truth=batch["args_truth"]
+        head_indexes=batch["head_indexes"]
+
+        typ_oracle = torch.LongTensor(typ_oracle).to(self.device)
+        typ_truth = torch.FloatTensor(typ_truth).to(self.device)
+        token = torch.LongTensor(token).to(self.device)
+        mask = torch.LongTensor(mask).to(self.device)
+        r_p = torch.LongTensor(r_p).to(self.device)
+        t_m = torch.LongTensor(t_m).to(self.device)
+        head_indexes = torch.LongTensor(head_indexes).to(self.device)
+
+        if t_index[0] is not None:
+
+            tri_oracle = tri_truth[0][t_index[0]]
+            type_pred, type_truth, trigger_pred_tuples, trigger_truth_tuples, args_pred_tuples, args_truth_tuples = self.predict_one(
+                self, self.config, typ_truth, token,  mask, head_indexes,r_p, t_m, tri_truth, args_truth, self.schema_id, typ_oracle,
+                tri_oracle)
+            metrics.evaluate(idx,type_pred,type_truth,trigger_pred_tuples,trigger_truth_tuples,args_pred_tuples,args_truth_tuples)
 
 
-        for batch in dev_data_loader:
-            idx=batch["data_ids"]
-            typ_oracle=batch["type_id"]
-            typ_truth=batch["type_vec"]
-            token=batch["tokens_id"]
-            mask=batch["token_masks"]
-            t_index=batch["t_index"]
-            r_p=batch["r_pos"]
-            t_m=batch["t_m"]
-            tri_truth=batch["triggers_truth"]
-            args_truth=batch["args_truth"]
-            head_indexes=batch["head_indexes"]
 
-            typ_oracle = torch.LongTensor(typ_oracle).to(self.device)
-            typ_truth = torch.FloatTensor(typ_truth).to(self.device)
-            token = torch.LongTensor(token).to(self.device)
-            mask = torch.LongTensor(mask).to(self.device)
-            r_p = torch.LongTensor(r_p).to(self.device)
-            t_m = torch.LongTensor(t_m).to(self.device)
-            head_indexes = torch.LongTensor(head_indexes).to(self.device)
-
-            if t_index[0] is not None:
-
-                tri_oracle = tri_truth[0][t_index[0]]
-                type_pred, type_truth, trigger_pred_tuples, trigger_truth_tuples, args_pred_tuples, args_truth_tuples = predict_one(
-                    self, self.config, typ_truth, token,  mask, head_indexes,r_p, t_m, tri_truth, args_truth, self.schema_id, typ_oracle,
-                    tri_oracle)
-
-                idx = idx[0]
-                # collect type predictions
-                if idx not in type_pred_dict:
-                    type_pred_dict[idx] = type_pred
-                if idx not in type_truth_dict:
-                    type_truth_dict[idx] = type_truth
-
-                # collect trigger predictions
-                if idx not in trigger_pred_tuples_dict:
-                    trigger_pred_tuples_dict[idx] = []
-                trigger_pred_tuples_dict[idx].extend(trigger_pred_tuples)
-                if idx not in trigger_truth_tuples_dict:
-                    trigger_truth_tuples_dict[idx] = []
-                trigger_truth_tuples_dict[idx].extend(trigger_truth_tuples)
-
-                # collect argument predictions
-                if idx not in args_pred_tuples_dict:
-                    args_pred_tuples_dict[idx] = []
-                args_pred_tuples_dict[idx].extend(args_pred_tuples)
-                if idx not in args_truth_tuples_dict:
-                    args_truth_tuples_dict[idx] = []
-                args_truth_tuples_dict[idx].extend(args_truth_tuples)
-
-        # Here we calculate event detection metric (macro).
-        type_pred_s, type_truth_s = [], []
-        for idx in type_truth_dict.keys():
-            type_pred_s.append(type_pred_dict[idx])
-            type_truth_s.append(type_truth_dict[idx])
-        type_pred_s = np.array(type_pred_s)
-        type_truth_s = np.array(type_truth_s)
-        c_ps = precision_score(type_truth_s, type_pred_s, average='macro')
-        c_rs = recall_score(type_truth_s, type_pred_s, average='macro')
-        c_fs = f1_score(type_truth_s, type_pred_s, average='macro')
-
-        # Here we calculate TC and AC metric with oracle inputs.
-        t_p, t_r, t_f = score(trigger_pred_tuples_dict, trigger_truth_tuples_dict)
-        a_p, a_r, a_f = score(args_pred_tuples_dict, args_truth_tuples_dict)
-        f1_mean_all = (c_fs + t_f + a_f) / 3
-        print('Evaluate on all types:')
-        print("Type P: {:.3f}, Type R: {:.3f}, Type F: {:.3f}".format( c_ps, c_rs, c_fs))
-        print("Trigger P: {:.3f}, Trigger R: {:.3f}, Trigger F: {:.3f}".format( t_p, t_r, t_f))
-        print("Args P: {:.3f}, Args R: {:.3f}, Args F: {:.3f}".format( a_p, a_r, a_f))
-        print("F1 Mean All: {:.3f}".format( f1_mean_all))
-        return c_ps, c_rs, c_fs, t_p, t_r, t_f, a_p, a_r, a_f
 
     def predict(self, batch):
         pass
 
-def score(preds_tuple, golds_tuple):
-    '''
-    Modified from https://github.com/xinyadu/eeqa
-    '''
-    gold_mention_n, pred_mention_n, true_positive_n = 0, 0, 0
-    for sentence_id in golds_tuple:
-        gold_sentence_mentions = golds_tuple[sentence_id]
-        pred_sentence_mentions = preds_tuple[sentence_id]
-        gold_sentence_mentions = set(gold_sentence_mentions)
-        pred_sentence_mentions = set(pred_sentence_mentions)
-        for mention in pred_sentence_mentions:
-            pred_mention_n += 1
-        for mention in gold_sentence_mentions:
-            gold_mention_n += 1
-        for mention in pred_sentence_mentions:
-            if mention in gold_sentence_mentions:
-                true_positive_n += 1
-    prec_c, recall_c, f1_c = 0, 0, 0
-    if pred_mention_n != 0:
-        prec_c = true_positive_n / pred_mention_n
-    else:
-        prec_c = 0
-    if gold_mention_n != 0:
-        recall_c = true_positive_n / gold_mention_n
-    else:
-        recall_c = 0
-    if prec_c or recall_c:
-        f1_c = 2 * prec_c * recall_c / (prec_c + recall_c)
-    else:
-        f1_c = 0
-    return prec_c, recall_c, f1_c
+    def predict_one(self,model, args, typ_truth, token, mask, head_indexes, r_p, t_m, tri_truth, args_truth, ty_args_id,
+                    typ_oracle, tri_oracle):
+        type_pred, trigger_pred, args_pred = self.extract_specific_item_with_oracle(model, typ_oracle, token, mask,
+                                                                               head_indexes, r_p, t_m, args.args_num,
+                                                                               args.threshold_0, args.threshold_1,
+                                                                               args.threshold_2, args.threshold_3,
+                                                                               args.threshold_4, ty_args_id)
+        type_oracle = typ_oracle.item()
+        type_truth = typ_truth.view(args.type_num).cpu().numpy().astype(int)
+        trigger_truth, args_truth = tri_truth[0], args_truth[0]
 
-def predict_one(model, args, typ_truth, token,  mask,head_indexes, r_p, t_m, tri_truth, args_truth, ty_args_id, typ_oracle, tri_oracle):
-    type_pred, trigger_pred, args_pred = extract_specific_item_with_oracle(model, typ_oracle, token, mask,head_indexes, r_p, t_m, args.args_num, args.threshold_0, args.threshold_1, args.threshold_2, args.threshold_3, args.threshold_4, ty_args_id)
-    type_oracle = typ_oracle.item()
-    type_truth = typ_truth.view(args.type_num).cpu().numpy().astype(int)
-    trigger_truth, args_truth = tri_truth[0], args_truth[0]
+        # used to save tuples, which is like:
+        trigger_pred_tuples = []  # (type, tri_sta, tri_end), 3-tuple
+        trigger_truth_tuples = []
+        args_pred_tuples = []  # (type, tri_sta, tri_end, arg_sta, arg_end, arg_role), 6-tuple
+        args_truth_tuples = []
 
-    # used to save tuples, which is like:
-    trigger_pred_tuples = []  # (type, tri_sta, tri_end), 3-tuple
-    trigger_truth_tuples = []
-    args_pred_tuples = []  # (type, tri_sta, tri_end, arg_sta, arg_end, arg_role), 6-tuple
-    args_truth_tuples = []
+        for trigger_pred_one in trigger_pred:
+            typ = type_oracle
+            sta = trigger_pred_one[0]
+            end = trigger_pred_one[1]
+            trigger_pred_tuples.append((typ, sta, end))
 
-    for trigger_pred_one in trigger_pred:
-        typ = type_oracle
-        sta = trigger_pred_one[0]
-        end = trigger_pred_one[1]
-        trigger_pred_tuples.append((typ, sta, end))
+        for trigger_truth_one in trigger_truth:
+            typ = type_oracle
+            sta = trigger_truth_one[0]
+            end = trigger_truth_one[1]
+            trigger_truth_tuples.append((typ, sta, end))
 
-    for trigger_truth_one in trigger_truth:
-        typ = type_oracle
-        sta = trigger_truth_one[0]
-        end = trigger_truth_one[1]
-        trigger_truth_tuples.append((typ, sta, end))
+        args_candidates = ty_args_id[type_oracle]  # type constrain
+        for i in args_candidates:
+            typ = type_oracle
+            tri_sta = tri_oracle[0]
+            tri_end = tri_oracle[1]
+            arg_role = i
+            for args_pred_one in args_pred[i]:
+                arg_sta = args_pred_one[0]
+                arg_end = args_pred_one[1]
+                args_pred_tuples.append((typ, arg_sta, arg_end, arg_role))
 
-    args_candidates = ty_args_id[type_oracle]  # type constrain
-    for i in args_candidates:
-        typ = type_oracle
-        tri_sta = tri_oracle[0]
-        tri_end = tri_oracle[1]
-        arg_role = i
-        for args_pred_one in args_pred[i]:
-            arg_sta = args_pred_one[0]
-            arg_end = args_pred_one[1]
-            args_pred_tuples.append((typ, arg_sta, arg_end, arg_role))
+            for args_truth_one in args_truth[i]:
+                arg_sta = args_truth_one[0]
+                arg_end = args_truth_one[1]
+                args_truth_tuples.append((typ, arg_sta, arg_end, arg_role))
 
-        for args_truth_one in args_truth[i]:
-            arg_sta = args_truth_one[0]
-            arg_end = args_truth_one[1]
-            args_truth_tuples.append((typ, arg_sta, arg_end, arg_role))
+        return type_pred, type_truth, trigger_pred_tuples, trigger_truth_tuples, args_pred_tuples, args_truth_tuples
 
-    return type_pred, type_truth, trigger_pred_tuples, trigger_truth_tuples, args_pred_tuples, args_truth_tuples
+    def extract_specific_item_with_oracle(self, model, d_t, token, mask, head_indexes, rp, tm, args_num, threshold_0,
+                                          threshold_1, threshold_2, threshold_3, threshold_4, ty_args_id):
+        assert token.size(0) == 1
+        data_type = d_t.item()
+        text_emb = model.plm(token, mask, head_indexes)
 
-def extract_specific_item_with_oracle(model, d_t, token,  mask,head_indexes, rp, tm, args_num, threshold_0, threshold_1, threshold_2, threshold_3, threshold_4, ty_args_id):
-    assert token.size(0) == 1
-    data_type = d_t.item()
-    text_emb = model.plm(token, mask,head_indexes)
+        # predict event type
+        p_type, type_emb = model.predict_type(text_emb, mask)
+        type_pred = np.array(p_type > threshold_0, dtype=int)
+        type_rep = type_emb[d_t, :]
 
-    # predict event type
-    p_type, type_emb = model.predict_type(text_emb, mask)
-    type_pred = np.array(p_type > threshold_0, dtype=int)
-    type_rep = type_emb[d_t, :]
-
-    # predict event trigger
-    p_s, p_e, text_rep_type = model.predict_trigger(type_rep, text_emb, mask)
-    trigger_s = np.where(p_s > threshold_1)[0]
-    trigger_e = np.where(p_e > threshold_2)[0]
-    trigger_spans = []
-    for i in trigger_s:
-        es = trigger_e[trigger_e >= i]
-        if len(es) > 0:
-            e = es[0]
-            trigger_spans.append((i, e))
-
-    # predict event argument
-    p_s, p_e, type_soft_constrain = model.predict_args(text_rep_type, rp, tm, mask, type_rep)
-    p_s = np.transpose(p_s)
-    p_e = np.transpose(p_e)
-    args_spans = {i: [] for i in range(args_num)}
-    for i in ty_args_id[data_type]:
-        args_s = np.where(p_s[i] > threshold_3)[0]
-        args_e = np.where(p_e[i] > threshold_4)[0]
-        for j in args_s:
-            es = args_e[args_e >= j]
+        # predict event trigger
+        p_s, p_e, text_rep_type = model.predict_trigger(type_rep, text_emb, mask)
+        trigger_s = np.where(p_s > threshold_1)[0]
+        trigger_e = np.where(p_e > threshold_2)[0]
+        trigger_spans = []
+        for i in trigger_s:
+            es = trigger_e[trigger_e >= i]
             if len(es) > 0:
                 e = es[0]
-                args_spans[i].append((j, e))
-    return type_pred, trigger_spans, args_spans
+                trigger_spans.append((i, e))
+
+        # predict event argument
+        p_s, p_e, type_soft_constrain = model.predict_args(text_rep_type, rp, tm, mask, type_rep)
+        p_s = np.transpose(p_s)
+        p_e = np.transpose(p_e)
+        args_spans = {i: [] for i in range(args_num)}
+        for i in ty_args_id[data_type]:
+            args_s = np.where(p_s[i] > threshold_3)[0]
+            args_e = np.where(p_e[i] > threshold_4)[0]
+            for j in args_s:
+                es = args_e[args_e >= j]
+                if len(es) > 0:
+                    e = es[0]
+                    args_spans[i].append((j, e))
+        return type_pred, trigger_spans, args_spans

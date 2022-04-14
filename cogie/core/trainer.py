@@ -23,6 +23,7 @@ class Trainer:
             dev_data=None,
             n_epochs=10,
             batch_size=32,
+            dev_batch_size=None,
             loss=None,
             optimizer=None,
             scheduler=None,
@@ -105,6 +106,7 @@ class Trainer:
         self.metrics = metrics
         self.scheduler = scheduler
         self.batch_size = batch_size
+        self.dev_batch_size=dev_batch_size if dev_batch_size is not None else batch_size
         self.use_tqdm = use_tqdm
         self.callbacks = callbacks
         self.train_sampler = train_sampler
@@ -156,7 +158,7 @@ class Trainer:
             self.validate_steps = self.batch_count
 
         if self.dev_data:
-            self.dev_dataloader = DataLoader(dataset=self.dev_data, batch_size=1,
+            self.dev_dataloader = DataLoader(dataset=self.dev_data, batch_size=self.dev_batch_size,
                                              sampler=self.dev_sampler, drop_last=self.drop_last,
                                              collate_fn=self.dev_collate_fn)
         self.model = module2parallel(self.model, self.device_ids)
@@ -307,14 +309,14 @@ class Trainer:
                     else:
                         progress = enumerate(self.dev_dataloader, 1)
                     with torch.no_grad():
-                    #     for step, batch in progress:
-                    #         self.model.evaluate(batch, self.metrics)
-                        self.model.evaluate(self.dev_dataloader, self.metrics)
+                        for step, batch in progress:
+                            self.model.evaluate(batch, self.metrics)
+                        # self.model.evaluate(self.dev_dataloader, self.metrics)
                     self.model.train()
-                    # evaluate_result = self.metrics.get_metric()
-                    # self.logger.info("Evaluate result = %s", str(evaluate_result))
-                    # for key, value in evaluate_result.items():
-                    #     self.writer.add_scalar(tag=key, scalar_value=value, global_step=global_step)
+                    evaluate_result = self.metrics.get_metric()
+                    self.logger.info("Evaluate result = %s", str(evaluate_result))
+                    for key, value in evaluate_result.items():
+                        self.writer.add_scalar(tag=key, scalar_value=value, global_step=global_step)
 
             self.logger.info("Epoch loss = %f", epoch_loss)
             self.logger.info("End time = %s", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())))

@@ -1533,10 +1533,105 @@ class SPOMetric:
 
             return entity_num_list
 
-class CASEEMetric:
+
+from sklearn.metrics import * #TODO:use our  precision_score  recall_score  f1_score
+class CASEEMetric(MetricBase):
     def __init__(self):
-        pass
-    def evaluate(self):
-        pass
-    def get_metric(self):
-        pass
+        super().__init__()
+        self.type_pred_dict = {}
+        self.type_truth_dict = {}
+        self.trigger_pred_tuples_dict = {}
+        self.trigger_truth_tuples_dict = {}
+        self.args_pred_tuples_dict = {}
+        self.args_truth_tuples_dict = {}
+    def evaluate(self,idx,type_pred,type_truth,trigger_pred_tuples,trigger_truth_tuples,args_pred_tuples,args_truth_tuples):
+            idx = idx[0]
+            # collect type predictions
+            if idx not in self.type_pred_dict:
+                self.type_pred_dict[idx] = type_pred
+            if idx not in self.type_truth_dict:
+                self.type_truth_dict[idx] = type_truth
+
+            # collect trigger predictions
+            if idx not in self.trigger_pred_tuples_dict:
+                self.trigger_pred_tuples_dict[idx] = []
+            self.trigger_pred_tuples_dict[idx].extend(trigger_pred_tuples)
+            if idx not in self.trigger_truth_tuples_dict:
+                self.trigger_truth_tuples_dict[idx] = []
+            self.trigger_truth_tuples_dict[idx].extend(trigger_truth_tuples)
+
+            # collect argument predictions
+            if idx not in self.args_pred_tuples_dict:
+                self.args_pred_tuples_dict[idx] = []
+            self.args_pred_tuples_dict[idx].extend(args_pred_tuples)
+            if idx not in self.args_truth_tuples_dict:
+                self.args_truth_tuples_dict[idx] = []
+            self.args_truth_tuples_dict[idx].extend(args_truth_tuples)
+    def get_metric(self, reset: bool = True):
+        # Here we calculate event detection metric (macro).
+        type_pred_s, type_truth_s = [], []
+        for idx in self.type_truth_dict.keys():
+            type_pred_s.append(self.type_pred_dict[idx])
+            type_truth_s.append(self.type_truth_dict[idx])
+        type_pred_s = np.array(type_pred_s)
+        type_truth_s = np.array(type_truth_s)
+        c_ps = precision_score(type_truth_s, type_pred_s, average='macro')
+        c_rs = recall_score(type_truth_s, type_pred_s, average='macro')
+        c_fs = f1_score(type_truth_s, type_pred_s, average='macro')
+
+        # Here we calculate TC and AC metric with oracle inputs.
+        t_p, t_r, t_f = self.score(self.trigger_pred_tuples_dict, self.trigger_truth_tuples_dict)
+        a_p, a_r, a_f = self.score(self.args_pred_tuples_dict,self.args_truth_tuples_dict)
+        f1_mean_all = (c_fs + t_f + a_f) / 3
+        if reset:
+            self.type_pred_dict = {}
+            self.type_truth_dict = {}
+            self.trigger_pred_tuples_dict = {}
+            self.trigger_truth_tuples_dict = {}
+            self.args_pred_tuples_dict = {}
+            self.args_truth_tuples_dict = {}
+        return {"Type P":c_ps,
+                "Type R":c_rs,
+                "Type F":c_fs,
+                "Trigger P":t_p,
+                "Trigger R":t_r,
+                "Trigger F":t_f,
+                "Args P":a_p,
+                "Args R":a_r,
+                "Args F":a_f,
+                "F1 Mean All":f1_mean_all}
+
+
+    def score(self,preds_tuple, golds_tuple):
+        '''
+        Modified from https://github.com/xinyadu/eeqa
+        '''
+        gold_mention_n, pred_mention_n, true_positive_n = 0, 0, 0
+        for sentence_id in golds_tuple:
+            gold_sentence_mentions = golds_tuple[sentence_id]
+            pred_sentence_mentions = preds_tuple[sentence_id]
+            gold_sentence_mentions = set(gold_sentence_mentions)
+            pred_sentence_mentions = set(pred_sentence_mentions)
+            for mention in pred_sentence_mentions:
+                pred_mention_n += 1
+            for mention in gold_sentence_mentions:
+                gold_mention_n += 1
+            for mention in pred_sentence_mentions:
+                if mention in gold_sentence_mentions:
+                    true_positive_n += 1
+        prec_c, recall_c, f1_c = 0, 0, 0
+        if pred_mention_n != 0:
+            prec_c = true_positive_n / pred_mention_n
+        else:
+            prec_c = 0
+        if gold_mention_n != 0:
+            recall_c = true_positive_n / gold_mention_n
+        else:
+            recall_c = 0
+        if prec_c or recall_c:
+            f1_c = 2 * prec_c * recall_c / (prec_c + recall_c)
+        else:
+            f1_c = 0
+        return prec_c, recall_c, f1_c
+
+
