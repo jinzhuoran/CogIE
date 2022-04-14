@@ -12,7 +12,7 @@ from cogie.models.ner.w2ner import W2NER
 
 device = torch.device('cuda')
 loader = TrexNerLoader()
-train_data, dev_data, test_data  = loader.load_all('../../../cognlp/data/ner/trex/data/trex_debug.json')
+train_data, dev_data, test_data  = loader.load_all('../../../cognlp/data/ner/trex/data/processed_data')
 
 processor = TrexW2NERProcessor(label_list=loader.get_labels(),path='../../../cognlp/data/ner/conll2003/data/',
                                   bert_model='bert-large-cased',max_length=512)
@@ -69,7 +69,7 @@ scheduler = transformers.get_linear_schedule_with_warmup(optimizer,
 trainer = cogie.Trainer(model,
                         train_dataset,
                         dev_data=test_dataset,
-                        n_epochs=10,
+                        n_epochs=100,
                         batch_size=config.batch_size,
                         loss=loss,
                         optimizer=optimizer,
