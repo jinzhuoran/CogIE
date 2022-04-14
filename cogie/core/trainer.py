@@ -33,6 +33,7 @@ class Trainer:
             gradient_accumulation_steps=1,
             num_workers=0,
             collate_fn=None,
+            dev_collate_fn=None,
             save_path=None,
             save_file=None,
             print_every=None,
@@ -110,6 +111,7 @@ class Trainer:
         self.dev_sampler = dev_sampler
         self.num_workers = num_workers
         self.collate_fn = collate_fn
+        self.dev_collate_fn=dev_collate_fn if dev_collate_fn is not None else collate_fn
         self.drop_last = drop_last
         self.device_ids = device_ids
         self.writer_path = writer_path
@@ -154,9 +156,9 @@ class Trainer:
             self.validate_steps = self.batch_count
 
         if self.dev_data:
-            self.dev_dataloader = DataLoader(dataset=self.dev_data, batch_size=self.batch_size,
+            self.dev_dataloader = DataLoader(dataset=self.dev_data, batch_size=1,
                                              sampler=self.dev_sampler, drop_last=self.drop_last,
-                                             collate_fn=self.collate_fn)
+                                             collate_fn=self.dev_collate_fn)
         self.model = module2parallel(self.model, self.device_ids)
 
         if self.writer_path:
@@ -305,8 +307,9 @@ class Trainer:
                     else:
                         progress = enumerate(self.dev_dataloader, 1)
                     with torch.no_grad():
-                        for step, batch in progress:
-                            self.model.evaluate(batch, self.metrics)
+                    #     for step, batch in progress:
+                    #         self.model.evaluate(batch, self.metrics)
+                        self.model.evaluate(self.dev_dataloader, self.metrics)
                     self.model.train()
                     evaluate_result = self.metrics.get_metric()
                     self.logger.info("Evaluate result = %s", str(evaluate_result))

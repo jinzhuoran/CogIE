@@ -1532,3 +1532,11 @@ class SPOMetric:
                 entity_num_list += [ner_pred_num, ner_gold_num, ner_right_num]
 
             return entity_num_list
+
+class CASEEMetric:
+    def __init__(self):
+        pass
+    def evaluate(self):
+        pass
+    def get_metric(self):
+        pass

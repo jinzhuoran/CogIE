@@ -17,6 +17,7 @@ class ACE2005CASEELoader:
                 dataset("args", sample["args"])
                 dataset("occur", sample["occur"])
                 dataset("triggers", sample["triggers"])
+                dataset("id", sample["id"])
         return dataset
 
     def load_all(self, path):
