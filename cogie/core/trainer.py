@@ -311,10 +311,10 @@ class Trainer:
                     #         self.model.evaluate(batch, self.metrics)
                         self.model.evaluate(self.dev_dataloader, self.metrics)
                     self.model.train()
-                    evaluate_result = self.metrics.get_metric()
-                    self.logger.info("Evaluate result = %s", str(evaluate_result))
-                    for key, value in evaluate_result.items():
-                        self.writer.add_scalar(tag=key, scalar_value=value, global_step=global_step)
+                    # evaluate_result = self.metrics.get_metric()
+                    # self.logger.info("Evaluate result = %s", str(evaluate_result))
+                    # for key, value in evaluate_result.items():
+                    #     self.writer.add_scalar(tag=key, scalar_value=value, global_step=global_step)
 
             self.logger.info("Epoch loss = %f", epoch_loss)
             self.logger.info("End time = %s", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())))

@@ -27,8 +27,6 @@ class ACE2005CASEEProcessor:
         self.argument_type_list = list()
         trigger_type_set = set()
         argument_type_set = set()
-        trigger_type_set.add("<unk>")
-        argument_type_set.add("<unk>")
         for trigger_type, argument_type_list in self.schema_str.items():
             trigger_type_set.add(trigger_type)
             for argument_type in argument_type_list:
@@ -47,14 +45,14 @@ class ACE2005CASEEProcessor:
         if os.path.exists(self.trigger_path):
             self.trigger_vocabulary = Vocabulary.load(self.trigger_path)
         else:
-            self.trigger_vocabulary = Vocabulary(padding=None, unknown="<unk>")
+            self.trigger_vocabulary = Vocabulary(padding=None, unknown=None)
             self.trigger_vocabulary.add_word_lst(self.trigger_type_list)
             self.trigger_vocabulary.build_vocab()
             self.trigger_vocabulary.save(self.trigger_path)
         if os.path.exists(self.argument_path):
             self.argument_vocabulary = Vocabulary.load(self.argument_path)
         else:
-            self.argument_vocabulary = Vocabulary(padding=None, unknown="<unk>")
+            self.argument_vocabulary = Vocabulary(padding=None, unknown=None)
             self.argument_vocabulary.add_word_lst(self.argument_type_list)
             self.argument_vocabulary.build_vocab()
             self.argument_vocabulary.save(self.argument_path)
@@ -86,6 +84,7 @@ class ACE2005CASEEProcessor:
             token_masks=token_masks[: self.max_length]
             tokens_id = tokens_id + [0] * (self.max_length - len(tokens_id))
             tokens_id=tokens_id[: self.max_length]
+            is_heads=is_heads[: self.max_length]
             for i in range(len(is_heads)):
                 if is_heads[i]:
                     head_indexes.append(i)
@@ -93,8 +92,8 @@ class ACE2005CASEEProcessor:
             head_indexes=head_indexes[: self.max_length]
 
             type_vec = np.array([0] * self.trigger_type_num)
-            type_id=0
-            if type is not None:
+            type_id=-1
+            if type != "<unk>":
                 type_id = self.trigger_vocabulary.word2idx[type]
                 for occ in occur:
                     idx = self.trigger_vocabulary.word2idx[occ]
@@ -176,6 +175,7 @@ class ACE2005CASEEProcessor:
             token_masks = token_masks[: self.max_length]
             tokens_id = tokens_id + [0] * (self.max_length - len(tokens_id))
             tokens_id = tokens_id[: self.max_length]
+            is_heads = is_heads[: self.max_length]
             for i in range(len(is_heads)):
                 if is_heads[i]:
                     head_indexes.append(i)
@@ -184,7 +184,7 @@ class ACE2005CASEEProcessor:
 
             type_vec = np.array([0] * self.trigger_type_num)
             type_id = 0
-            if type is not None:
+            if type != '<unk>':
                 type_id = self.trigger_vocabulary.word2idx[type]
                 for occ in occur:
                     idx = self.trigger_vocabulary.word2idx[occ]

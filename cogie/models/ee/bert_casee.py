@@ -269,6 +269,7 @@ class CasEE(BaseModule):
         self.loss_0 = nn.BCELoss(reduction='none')
         self.loss_1 = nn.BCELoss(reduction='none')
         self.loss_2 = nn.BCELoss(reduction='none')
+        self.xxx=0
 
     def forward(self, tokens,  mask, head_indexes,type_id, type_vec, trigger_s_vec, trigger_e_vec, relative_pos, trigger_mask, args_s_vec, args_e_vec, args_mask):
         '''
@@ -307,29 +308,49 @@ class CasEE(BaseModule):
         type_loss = self.loss_0(p_type, type_vec)
         type_loss = torch.sum(type_loss)
 
-        type_rep = type_emb[type_id, :]
-        p_s, p_e, text_rep_type = self.trigger_rec(type_rep, output_emb, mask)
-        p_s = p_s.pow(self.config.pow_1)
-        p_e = p_e.pow(self.config.pow_1)
-        p_s = p_s.squeeze(-1)
-        p_e = p_e.squeeze(-1)
-        trigger_loss_s = self.loss_1(p_s, trigger_s_vec)
-        trigger_loss_e = self.loss_1(p_e, trigger_e_vec)
-        mask_t = mask.float()  # [b, t]
-        trigger_loss_s = torch.sum(trigger_loss_s.mul(mask_t))
-        trigger_loss_e = torch.sum(trigger_loss_e.mul(mask_t))
+        event_flag=type_id!=-1
+        event_num=sum(event_flag).item()
+        tokens=tokens[event_flag]
+        mask=mask[event_flag]
+        head_indexes=head_indexes[event_flag]
+        type_id=type_id[event_flag]
+        type_vec=type_vec[event_flag]
+        trigger_s_vec=trigger_s_vec[event_flag]
+        trigger_e_vec=trigger_e_vec[event_flag]
+        relative_pos=relative_pos[event_flag]
+        trigger_mask=trigger_mask[event_flag]
+        args_s_vec=args_s_vec[event_flag]
+        args_e_vec=args_e_vec[event_flag]
+        args_mask=args_mask[event_flag]
+        output_emb=output_emb[event_flag]
 
-        p_s, p_e, type_soft_constrain = self.args_rec(text_rep_type, relative_pos, trigger_mask, mask, type_rep)
-        p_s = p_s.pow(self.config.pow_2)
-        p_e = p_e.pow(self.config.pow_2)
-        args_loss_s = self.loss_2(p_s, args_s_vec.transpose(1, 2))  # [b, t, l]
-        args_loss_e = self.loss_2(p_e, args_e_vec.transpose(1, 2))
-        mask_a = mask.unsqueeze(-1).expand_as(args_loss_s).float()  # [b, t, l]
-        args_loss_s = torch.sum(args_loss_s.mul(mask_a))
-        args_loss_e = torch.sum(args_loss_e.mul(mask_a))
+        trigger_loss=0
+        args_loss=0
 
-        trigger_loss = trigger_loss_s + trigger_loss_e
-        args_loss = args_loss_s + args_loss_e
+        if event_num>0:
+            type_rep = type_emb[type_id, :]
+            p_s, p_e, text_rep_type = self.trigger_rec(type_rep, output_emb, mask)
+            p_s = p_s.pow(self.config.pow_1)
+            p_e = p_e.pow(self.config.pow_1)
+            p_s = p_s.squeeze(-1)
+            p_e = p_e.squeeze(-1)
+            trigger_loss_s = self.loss_1(p_s, trigger_s_vec)
+            trigger_loss_e = self.loss_1(p_e, trigger_e_vec)
+            mask_t = mask.float()  # [b, t]
+            trigger_loss_s = torch.sum(trigger_loss_s.mul(mask_t))
+            trigger_loss_e = torch.sum(trigger_loss_e.mul(mask_t))
+
+            p_s, p_e, type_soft_constrain = self.args_rec(text_rep_type, relative_pos, trigger_mask, mask, type_rep)
+            p_s = p_s.pow(self.config.pow_2)
+            p_e = p_e.pow(self.config.pow_2)
+            args_loss_s = self.loss_2(p_s, args_s_vec.transpose(1, 2))  # [b, t, l]
+            args_loss_e = self.loss_2(p_e, args_e_vec.transpose(1, 2))
+            mask_a = mask.unsqueeze(-1).expand_as(args_loss_s).float()  # [b, t, l]
+            args_loss_s = torch.sum(args_loss_s.mul(mask_a))
+            args_loss_e = torch.sum(args_loss_e.mul(mask_a))
+
+            trigger_loss = trigger_loss_s + trigger_loss_e
+            args_loss = args_loss_s + args_loss_e
 
         type_loss = self.config.w1 * type_loss
         trigger_loss = self.config.w2 * trigger_loss
