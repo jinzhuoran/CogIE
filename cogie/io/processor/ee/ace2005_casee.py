@@ -152,6 +152,7 @@ class ACE2005CASEEProcessor:
             datable("a_s", args_s)
             datable("a_e", args_e)
             datable("a_m", arg_mask)
+            datable("content", content)
 
         return datable
 
@@ -225,6 +226,7 @@ class ACE2005CASEEProcessor:
             datable("triggers_truth", triggers_truth)
             datable("args_truth", args_truth)
             datable("head_indexes", head_indexes)
+            datable("content", content)
 
         return datable
 
@@ -300,6 +302,7 @@ class ACE2005CASEEProcessor:
             datable("triggers_truth", triggers_truth)
             datable("args_truth", args_truth)
             datable("head_indexes", head_indexes)
+            datable("content",content)
 
         return datable
 

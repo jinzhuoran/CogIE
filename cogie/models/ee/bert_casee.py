@@ -246,8 +246,10 @@ class ArgsRec(nn.Module):
 
 
 class CasEE(BaseModule):
-    def __init__(self, config,  pos_emb_size,args_num,type_num,device,bert_model='bert-base-cased',multi_piece="average",schema_id=None):
+    def __init__(self, config,trigger_vocabulary,argument_vocabulary,  pos_emb_size,args_num,type_num,device,bert_model='bert-base-cased',multi_piece="average",schema_id=None):
         super(CasEE, self).__init__()
+        self.trigger_vocabulary=trigger_vocabulary
+        self.argument_vocabulary=argument_vocabulary
         self.schema_id=schema_id
         self.config=config
         self.bert_model=bert_model
@@ -518,6 +520,7 @@ class CasEE(BaseModule):
         tri_truth=batch["triggers_truth"]
         args_truth=batch["args_truth"]
         head_indexes=batch["head_indexes"]
+        content=batch["content"]
 
         typ_oracle = torch.LongTensor(np.array(typ_oracle)).to(self.device)
         typ_truth = torch.FloatTensor(np.array(typ_truth)).to(self.device)
@@ -533,7 +536,111 @@ class CasEE(BaseModule):
             type_pred, type_truth, trigger_pred_tuples, trigger_truth_tuples, args_pred_tuples, args_truth_tuples = self.predict_one(
                 self, self.config, typ_truth, token,  mask, head_indexes,r_p, t_m, tri_truth, args_truth, self.schema_id, typ_oracle,
                 tri_oracle)
+            result=self.evaluate_without_oracle(self.config,content,idx,self,self.config.seq_length, self.trigger_vocabulary.idx2word, self.argument_vocabulary.idx2word, self.schema_id,token,mask,head_indexes)
+            metrics.results.append(result)
             metrics.evaluate(idx,type_pred,type_truth,trigger_pred_tuples,trigger_truth_tuples,args_pred_tuples,args_truth_tuples)
+
+    def evaluate_without_oracle(self, config,content,idx, model, seq_len, id_type, id_args, ty_args_id,token,mask,head_indexes):
+        idx = idx[0]
+        result = self.extract_all_items_without_oracle(model, self.device, idx, content, token, mask, head_indexes , seq_len,
+                                                  config.threshold_0, config.threshold_1, config.threshold_2,
+                                                  config.threshold_3, config.threshold_4, id_type, id_args,
+                                                  ty_args_id)
+        return result
+
+
+    def extract_all_items_without_oracle(self,model, device, idx, content: str, token,  mask, head_indexes,seq_len, threshold_0,
+                                         threshold_1, threshold_2, threshold_3, threshold_4, id_type: dict,
+                                         id_args: dict, ty_args_id: dict):
+        assert token.size(0) == 1
+        content = content[0]
+        result = {'id': idx, 'content': content}
+        text_emb = model.plm(token, mask,head_indexes)
+
+        args_id = {id_args[k]: k for k in id_args}
+        # args_len_dict = {args_id[k]: ARG_LEN_DICT[k] for k in ARG_LEN_DICT}
+
+        p_type, type_emb = model.predict_type(text_emb, mask)
+        type_pred = np.array(p_type > threshold_0, dtype=bool)
+        type_pred = [i for i, t in enumerate(type_pred) if t]
+        events_pred = []
+
+        for type_pred_one in type_pred:
+            type_rep = type_emb[type_pred_one, :]
+            type_rep = type_rep.unsqueeze(0)
+            p_s, p_e, text_rep_type = model.predict_trigger(type_rep, text_emb, mask)
+            trigger_s = np.where(p_s > threshold_1)[0]
+            trigger_e = np.where(p_e > threshold_2)[0]
+            trigger_spans = []
+
+            for i in trigger_s:
+                es = trigger_e[trigger_e >= i]
+                if len(es) > 0:
+                    e = es[0]
+                    # if e - i + 1 <= TRI_LEN:
+                    trigger_spans.append((i, e))
+
+            for k, span in enumerate(trigger_spans):
+                rp = self.get_relative_pos(span[0], span[1], seq_len)
+                rp = [p + seq_len for p in rp]
+                tm = self.get_trigger_mask(span[0], span[1], seq_len)
+                rp = torch.LongTensor(rp).to(device)
+                tm = torch.LongTensor(tm).to(device)
+                rp = rp.unsqueeze(0)
+                tm = tm.unsqueeze(0)
+
+                p_s, p_e, type_soft_constrain = model.predict_args(text_rep_type, rp, tm, mask, type_rep)
+
+                p_s = np.transpose(p_s)
+                p_e = np.transpose(p_e)
+
+                type_name = id_type[type_pred_one]
+                pred_event_one = {'type': type_name}
+                pred_trigger = {'span': [int(span[0]) - 1, int(span[1]) + 1 - 1],
+                                'word': content[int(span[0]) - 1:int(span[1]) + 1 - 1]}  # remove <CLS> token
+                pred_event_one['triggers'] = pred_trigger#############################################################################
+                pred_args = {}
+
+                args_candidates = ty_args_id[type_pred_one]
+                for i in args_candidates:
+                    pred_args[id_args[i]] = []
+                    args_s = np.where(p_s[i] > threshold_3)[0]
+                    args_e = np.where(p_e[i] > threshold_4)[0]
+                    for j in args_s:
+                        es = args_e[args_e >= j]
+                        if len(es) > 0:
+                            e = es[0]
+                            # if e - j + 1 <= args_len_dict[i]:
+                            pred_arg = {'span': [int(j) - 1, int(e) + 1 - 1],
+                                        'word': content[int(j) - 1:int(e) + 1 - 1]}  # remove <CLS> token
+                            pred_args[id_args[i]].append(pred_arg)
+
+                pred_event_one['args'] = pred_args
+                events_pred.append(pred_event_one)
+        result['events'] = events_pred
+        return result
+
+    def get_relative_pos(self,start_idx, end_idx, length):
+        '''
+        return relative position
+        [start_idx, end_idx]
+        比如左闭右闭2,3
+        那么下标从0开始，开始和结束位置都是0，前面是负数，后面是正数字
+        0  1  2  3  4  5  6
+        -2 -1 0  0  1  2  3
+        '''
+        pos = list(range(-start_idx, 0)) + [0] * (end_idx - start_idx + 1) + list(range(1, length - end_idx))
+        return pos
+
+    def get_trigger_mask(self,start_idx, end_idx, length):
+        '''
+        used to generate trigger mask, where the element of start/end postion is 1
+        [000010100000]
+        '''
+        mask = [0] * length
+        mask[start_idx] = 1
+        mask[end_idx] = 1
+        return mask
 
 
 

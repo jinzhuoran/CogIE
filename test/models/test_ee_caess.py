@@ -13,7 +13,7 @@ def parse_args():
 
     # Path options.
     parser.add_argument("--data_path", type=str, default='datasets/FewFC', help="Path of the dataset.")
-    parser.add_argument("--test_path", type=str, default='datasets/FewFC/data/test.json', help="Path of the testset.")
+    parser.add_argument("--test_path", type=str, default='../../../cognlp/data/ee/ace2005casee/data/test.json', help="Path of the testset.")
 
     parser.add_argument("--output_result_path", type=str, default='models_save/results.json')
     parser.add_argument("--output_model_path", default="./models_save/model.bin", type=str, help="Path of the output model.")
@@ -50,11 +50,11 @@ def parse_args():
     parser.add_argument("--rp_size", type=int, default=64)
     parser.add_argument("--decoder_num_head", type=int, default=1)
 
-    parser.add_argument("--threshold_0", type=float, default=0.5)
-    parser.add_argument("--threshold_1", type=float, default=0.5)
-    parser.add_argument("--threshold_2", type=float, default=0.5)
-    parser.add_argument("--threshold_3", type=float, default=0.5)
-    parser.add_argument("--threshold_4", type=float, default=0.5)
+    parser.add_argument("--threshold_0", type=float, default=0.2)
+    parser.add_argument("--threshold_1", type=float, default=0.2)
+    parser.add_argument("--threshold_2", type=float, default=0.2)
+    parser.add_argument("--threshold_3", type=float, default=0.2)
+    parser.add_argument("--threshold_4", type=float, default=0.2)
 
     parser.add_argument("--step", type=str, choices=["dev", "test"])
 
@@ -78,6 +78,8 @@ test_datable = processor.process_test(test_data)
 test_dataset = DataTableSet(test_datable, to_device=False)
 
 model =CasEE(config,
+             trigger_vocabulary=processor.get_trigger_vocabulary(),
+             argument_vocabulary=processor.get_argument_vocabulary(),
              type_num=len(processor.get_trigger_vocabulary()),
              args_num=len(processor.get_argument_vocabulary()),
              bert_model='bert-base-cased', pos_emb_size=64,
@@ -87,7 +89,7 @@ loss = {"loss_0":nn.BCELoss(reduction='none'),
         "loss_1":nn.BCELoss(reduction='none'),
         "loss_2":nn.BCELoss(reduction='none')}
 optimizer = optim.Adam(model.parameters(), lr=0.00005)
-metric = CASEEMetric()
+metric = CASEEMetric(test_path='../../../cognlp/data/ee/ace2005casee/data/old_add_id_test.json')
 
 trainer = Trainer(model,
                   train_dataset,
@@ -106,7 +108,7 @@ trainer = Trainer(model,
                   save_file=None,
                   print_every=None,
                   scheduler_steps=None,
-                  validate_steps=500,
+                  validate_steps=100,
                   save_steps=1000,
                   grad_norm=1.0,
                   use_tqdm=True,

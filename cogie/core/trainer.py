@@ -311,7 +311,6 @@ class Trainer:
                     with torch.no_grad():
                         for step, batch in progress:
                             self.model.evaluate(batch, self.metrics)
-                        # self.model.evaluate(self.dev_dataloader, self.metrics)
                     self.model.train()
                     evaluate_result = self.metrics.get_metric()
                     self.logger.info("Evaluate result = %s", str(evaluate_result))

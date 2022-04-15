@@ -13,6 +13,7 @@ from collections import defaultdict
 from copy import deepcopy
 from typing import List, Optional, Iterable
 from typing import Union
+import json
 
 from cogie.utils import Vocabulary
 from .utils import ConfusionMatrix
@@ -1536,14 +1537,16 @@ class SPOMetric:
 
 from sklearn.metrics import * #TODO:use our  precision_score  recall_score  f1_score
 class CASEEMetric(MetricBase):
-    def __init__(self):
+    def __init__(self,test_path):
         super().__init__()
+        self.test_path=test_path
         self.type_pred_dict = {}
         self.type_truth_dict = {}
         self.trigger_pred_tuples_dict = {}
         self.trigger_truth_tuples_dict = {}
         self.args_pred_tuples_dict = {}
         self.args_truth_tuples_dict = {}
+        self.results = []
     def evaluate(self,idx,type_pred,type_truth,trigger_pred_tuples,trigger_truth_tuples,args_pred_tuples,args_truth_tuples):
             idx = idx[0]
             # collect type predictions
@@ -1583,6 +1586,15 @@ class CASEEMetric(MetricBase):
         t_p, t_r, t_f = self.score(self.trigger_pred_tuples_dict, self.trigger_truth_tuples_dict)
         a_p, a_r, a_f = self.score(self.args_pred_tuples_dict,self.args_truth_tuples_dict)
         f1_mean_all = (c_fs + t_f + a_f) / 3
+
+        pred_records = self.results
+        pred_dict = self.gen_idx_event_dict(pred_records)
+        gold_records = self.read_jsonl(self.test_path)
+        gold_dict = self.gen_idx_event_dict(gold_records)
+        prf_s = self.cal_scores_ti_tc_ai_ac(pred_dict, gold_dict)
+        metric_names = ['TI', 'TC', 'AI', 'AC']
+        for i, prf in enumerate(prf_s):
+            print('{}: P:{:.1f}, R:{:.1f}, F:{:.1f}'.format(metric_names[i], prf[0] * 100, prf[1] * 100, prf[2] * 100))
         if reset:
             self.type_pred_dict = {}
             self.type_truth_dict = {}
@@ -1590,6 +1602,7 @@ class CASEEMetric(MetricBase):
             self.trigger_truth_tuples_dict = {}
             self.args_pred_tuples_dict = {}
             self.args_truth_tuples_dict = {}
+            self.results=[]
         return {"Type P":c_ps,
                 "Type R":c_rs,
                 "Type F":c_fs,
@@ -1600,6 +1613,77 @@ class CASEEMetric(MetricBase):
                 "Args R":a_r,
                 "Args F":a_f,
                 "F1 Mean All":f1_mean_all}
+
+    def gen_idx_event_dict(self,records):
+        data_dict = {}
+        for line in records:
+            idx = line['id']
+            events = line['events']
+            data_dict[idx] = events
+        return data_dict
+
+    def read_jsonl(self,fn):
+        with open(fn, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+        data = []
+        for line in lines:
+            data.append(json.loads(line))
+        return data
+
+    def cal_scores_ti_tc_ai_ac(self,preds, golds):
+        '''
+        :param preds: {id: [{type:'', 'trigger':{'span':[], 'word':[]}, args:[role1:[], role2:[], ...}, ...]}
+        :param golds:
+        :return:
+        '''
+        # assert len(preds) == len(golds)
+        tuples_pred = [{}, {}, {}, {}]  # ti, tc, ai, ac
+        tuples_gold = [{}, {}, {}, {}]  # ti, tc, ai, ac
+
+        for idx in golds:
+            if idx not in preds:
+                pred = None
+            else:
+                pred = preds[idx]
+            gold = golds[idx]
+
+            ti, tc, ai, ac = self.gen_tuples(pred)
+            tuples_pred[0][idx] = ti
+            tuples_pred[1][idx] = tc
+            tuples_pred[2][idx] = ai
+            tuples_pred[3][idx] = ac
+
+            ti, tc, ai, ac = self.gen_tuples(gold)
+            tuples_gold[0][idx] = ti
+            tuples_gold[1][idx] = tc
+            tuples_gold[2][idx] = ai
+            tuples_gold[3][idx] = ac
+
+        prf_s = []
+        for i in range(4):
+            prf = self.score(tuples_pred[i], tuples_gold[i])
+            prf_s.append(prf)
+        return prf_s
+
+    def gen_tuples(self,record):
+        if record:
+            ti, tc, ai, ac = [], [], [], []
+            for event in record:
+                typ, trigger_span = event['type'], event['triggers']['span']
+                ti_one = (trigger_span[0], trigger_span[1])
+                tc_one = (typ, trigger_span[0], trigger_span[1])
+                ti.append(ti_one)
+                tc.append(tc_one)
+                for arg_role in event['args']:
+                    for arg_role_one in event['args'][arg_role]:
+                        ai_one = (typ, arg_role_one['span'][0], arg_role_one['span'][1])
+                        ac_one = (typ, arg_role_one['span'][0], arg_role_one['span'][1], arg_role)
+
+                        ai.append(ai_one)
+                        ac.append(ac_one)
+            return ti, tc, ai, ac
+        else:
+            return [], [], [], []
 
 
     def score(self,preds_tuple, golds_tuple):

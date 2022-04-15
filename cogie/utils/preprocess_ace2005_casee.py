@@ -1,6 +1,7 @@
 import os
 import json
 import collections
+import copy
 
 def process_ace2005_for_casee(raw_data_path,processed_data_path):
     """
@@ -68,18 +69,24 @@ def process_ace2005_for_casee(raw_data_path,processed_data_path):
     ############################################################################################################
     """
     raw_data_file_list=[{"raw_path":os.path.join(raw_data_path,data_type),
-                         "processed_path":os.path.join(processed_data_path,data_type)}
+                         "processed_path":os.path.join(processed_data_path,data_type),
+                         "old_add_id_path":os.path.join(processed_data_path,"old_add_id_"+data_type)}
                         for data_type in ["train.json","dev.json","test.json"]]
     schema = collections.defaultdict(set)
     id=-1
     for path_dict in raw_data_file_list:
         raw_path=path_dict["raw_path"]
         processed_path=path_dict["processed_path"]
+        old_add_id_path=path_dict["old_add_id_path"]
         new_data=[]
+        old_add_id_data=[]
+        add_id_event=[]
+        add_id_event_dict={}
         with open (raw_path) as f:
             new_line_dict={}
+            old_add_id_data_dict={}
             raw_data=json.load(f)
-            for line_dict in raw_data:
+            for step,line_dict in enumerate(raw_data):
                 id=id+1
                 occur=[]
                 triggers=[]
@@ -91,16 +98,25 @@ def process_ace2005_for_casee(raw_data_path,processed_data_path):
                         new_line_dict["content"] = line_dict["words"]
                         new_line_dict["index"]=index
                         new_line_dict["type"]=event["event_type"]
+                        add_id_event_dict["type"]=event["event_type"]
                         args_value=collections.defaultdict(list)
+                        add_id_event_dict["args"]={}
                         for role_item in event["arguments"]:
                             args_value[role_item["role"]].append([role_item["start"],role_item["end"]])
                             schema[event["event_type"]].add(role_item["role"])
+                            add_id_event_dict["args"][role_item["role"]]=[]
+                            add_id_event_dict["args"][role_item["role"]].append({"span":[role_item["start"],role_item["end"]],"word":role_item["text"]})
                         new_line_dict["args"]=args_value
                         new_line_dict["occur"]=occur
                         new_line_dict["triggers"]=triggers
+                        add_id_event_dict["triggers"]={"span":[event["trigger"]["start"],event["trigger"]["end"]],"word":event["trigger"]["text"]}
                         new_line_dict["id"] = str(id)
                         new_data.append(new_line_dict)
                         new_line_dict={}
+                        add_id_event.append(add_id_event_dict)
+                        add_id_event_dict = {}
+                    old_add_id_data.append({"id": str(id), "events":add_id_event})
+                    add_id_event = []
                 if len(line_dict["golden-event-mentions"])==0:
                     new_line_dict["content"] = line_dict["words"]
                     new_line_dict["index"] = None
@@ -109,12 +125,18 @@ def process_ace2005_for_casee(raw_data_path,processed_data_path):
                     new_line_dict["occur"] = []
                     new_line_dict["triggers"] = []
                     new_line_dict["id"]=str(id)
+                    old_add_id_data.append({"id":str(id),"events":[]})
                     new_data.append(new_line_dict)
                     new_line_dict = {}
         with open(processed_path, 'w', encoding='utf-8') as f:
             for line in new_data:
                 line = json.dumps(line, ensure_ascii=False)
                 f.write(line + '\n')
+        with open(old_add_id_path, 'w', encoding='utf-8') as f:
+            for line in old_add_id_data:
+                line = json.dumps(line, ensure_ascii=False)
+                f.write(line + '\n')
+
     schema_list_dict={}
     for key,value in schema.items():
         schema_list_dict[key]=list(value)
