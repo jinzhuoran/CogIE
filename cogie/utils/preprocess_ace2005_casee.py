@@ -84,7 +84,6 @@ def process_ace2005_for_casee(raw_data_path,processed_data_path):
         add_id_event_dict={}
         with open (raw_path) as f:
             new_line_dict={}
-            old_add_id_data_dict={}
             raw_data=json.load(f)
             for step,line_dict in enumerate(raw_data):
                 id=id+1
@@ -115,7 +114,7 @@ def process_ace2005_for_casee(raw_data_path,processed_data_path):
                         new_line_dict={}
                         add_id_event.append(add_id_event_dict)
                         add_id_event_dict = {}
-                    old_add_id_data.append({"id": str(id), "events":add_id_event})
+                    old_add_id_data.append({"id": str(id), "events":add_id_event,"content":line_dict["words"]})
                     add_id_event = []
                 if len(line_dict["golden-event-mentions"])==0:
                     new_line_dict["content"] = line_dict["words"]
@@ -125,7 +124,7 @@ def process_ace2005_for_casee(raw_data_path,processed_data_path):
                     new_line_dict["occur"] = []
                     new_line_dict["triggers"] = []
                     new_line_dict["id"]=str(id)
-                    old_add_id_data.append({"id":str(id),"events":[]})
+                    old_add_id_data.append({"id":str(id),"events":[],"content":line_dict["words"]})
                     new_data.append(new_line_dict)
                     new_line_dict = {}
         with open(processed_path, 'w', encoding='utf-8') as f:

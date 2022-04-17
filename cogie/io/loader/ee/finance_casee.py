@@ -1,7 +1,7 @@
 import os
 import json
 from cogie.core import DataTable
-class ACE2005CASEELoader:
+class FINANCECASEELoader:
     def __init__(self):
         pass
 
@@ -21,9 +21,6 @@ class ACE2005CASEELoader:
         return dataset
 
     def load_all(self, path):
-        # train_path = os.path.join(path, 'okok.json')
-        # dev_path = os.path.join(path, 'okok.json')
-        # test_path = os.path.join(path, 'okok.json')
         train_path = os.path.join(path, 'train.json')
         dev_path = os.path.join(path, 'dev.json')
         test_path = os.path.join(path, 'test.json')

@@ -1590,7 +1590,15 @@ class CASEEMetric(MetricBase):
         pred_records = self.results
         pred_dict = self.gen_idx_event_dict(pred_records)
         gold_records = self.read_jsonl(self.test_path)
-        gold_dict = self.gen_idx_event_dict(gold_records)
+        gold_dict_temp = self.gen_idx_event_dict(gold_records)
+        gold_dict={}
+        for key,value in gold_dict_temp.items() :
+            if len(value)>0:
+                gold_dict[key]=value
+        # print("######")
+        # print(pred_dict)
+        # print("!!!!!!")
+        # print(gold_dict)
         prf_s = self.cal_scores_ti_tc_ai_ac(pred_dict, gold_dict)
         metric_names = ['TI', 'TC', 'AI', 'AC']
         for i, prf in enumerate(prf_s):
@@ -1669,7 +1677,11 @@ class CASEEMetric(MetricBase):
         if record:
             ti, tc, ai, ac = [], [], [], []
             for event in record:
-                typ, trigger_span = event['type'], event['triggers']['span']
+                typ = event['type']####ace2005是'triggers'
+                if 'triggers' in event.keys():
+                    trigger_span= event['triggers']['span']
+                if 'trigger' in event.keys():
+                    trigger_span= event['trigger']['span']
                 ti_one = (trigger_span[0], trigger_span[1])
                 tc_one = (typ, trigger_span[0], trigger_span[1])
                 ti.append(ti_one)
