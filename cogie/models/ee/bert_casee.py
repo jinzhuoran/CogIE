@@ -8,7 +8,6 @@ from tqdm import tqdm
 from sklearn.metrics import *
 
 
-
 def gelu(x):
     return x * 0.5 * (1.0 + torch.erf(x / math.sqrt(2.0)))
 
@@ -133,6 +132,8 @@ class MultiHeadedAttention(nn.Module):
         output = unshape(torch.matmul(probs, value))
         output = self.final_linear(output)
         return output
+
+
 
 
 
@@ -332,24 +333,24 @@ class CasEE(BaseModule):
         trigger_loss_s = torch.sum(trigger_loss_s.mul(mask_t))
         trigger_loss_e = torch.sum(trigger_loss_e.mul(mask_t))
 
-        #
-        # p_s, p_e, type_soft_constrain = self.args_rec(text_rep_type, relative_pos, trigger_mask, mask, type_rep)
-        # p_s = p_s.pow(self.config.pow_2)
-        # p_e = p_e.pow(self.config.pow_2)
-        # args_loss_s =  loss_function["loss_2"](p_s, args_s_vec.transpose(1, 2))  # [b, t, l]
-        # args_loss_e =  loss_function["loss_2"](p_e, args_e_vec.transpose(1, 2))
-        # mask_a = mask.unsqueeze(-1).expand_as(args_loss_s).float()  # [b, t, l]
-        # args_loss_s = torch.sum(args_loss_s.mul(mask_a))
-        # args_loss_e = torch.sum(args_loss_e.mul(mask_a))
+
+        p_s, p_e, type_soft_constrain = self.args_rec(text_rep_type, relative_pos, trigger_mask, mask, type_rep)
+        p_s = p_s.pow(self.config.pow_2)
+        p_e = p_e.pow(self.config.pow_2)
+        args_loss_s =  loss_function["loss_2"](p_s, args_s_vec.transpose(1, 2))  # [b, t, l]
+        args_loss_e =  loss_function["loss_2"](p_e, args_e_vec.transpose(1, 2))
+        mask_a = mask.unsqueeze(-1).expand_as(args_loss_s).float()  # [b, t, l]
+        args_loss_s = torch.sum(args_loss_s.mul(mask_a))
+        args_loss_e = torch.sum(args_loss_e.mul(mask_a))
 
         trigger_loss = trigger_loss_s + trigger_loss_e
-        # args_loss = args_loss_s + args_loss_e
+        args_loss = args_loss_s + args_loss_e
 
         type_loss = self.config.w1 * type_loss
         trigger_loss = self.config.w2 * trigger_loss
-        # args_loss = self.config.w3 * args_loss
-        loss = type_loss + trigger_loss #+ args_loss
-        print("loss",loss.item(),"type_loss",type_loss.item(),"trigger_loss",trigger_loss.item())#,"trigger_loss",trigger_loss.item(),"args_loss",args_loss.item()
+        args_loss = self.config.w3 * args_loss
+        loss = type_loss + trigger_loss + args_loss#+ args_loss
+        print("loss",loss.item(),"type_loss",type_loss.item(),"trigger_loss",trigger_loss.item(),"args_loss",args_loss.item())#,"trigger_loss",trigger_loss.item(),"args_loss",args_loss.item()
         # return loss, type_loss, trigger_loss, args_loss
         return loss, type_loss, None, None
 

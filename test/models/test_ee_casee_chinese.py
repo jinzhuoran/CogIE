@@ -8,8 +8,8 @@ from cogie.io.processor.ee.finance_casee import FINANCECASEEProcessor
 import argparse
 from transformers import get_linear_schedule_with_warmup
 from transformers import AdamW
-torch.cuda.set_device(5)
-device = torch.device('cuda:5')
+torch.cuda.set_device(8)
+device = torch.device('cuda:8')
 def parse_args():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
@@ -91,6 +91,7 @@ model =CasEE(config,
 loss = {"loss_0":nn.BCELoss(reduction='none'),
         "loss_1":nn.BCELoss(reduction='none'),
         "loss_2":nn.BCELoss(reduction='none')}
+
 bert_params = list(map(id, model.bert.parameters()))
 other_params = filter(lambda p: id(p) not in bert_params, model.parameters())
 optimizer_grouped_parameters = [{'params': model.bert.parameters()}, {'params': other_params, 'lr':1e-4}]
@@ -122,7 +123,7 @@ trainer = Trainer(model,
                   grad_norm=1.0,
                   use_tqdm=True,
                   device=device,
-                  device_ids=[5],
+                  device_ids=[8],
                   collate_fn=train_dataset.to_dict,
                   dev_collate_fn=test_dataset.to_dict,
                   callbacks=None,
