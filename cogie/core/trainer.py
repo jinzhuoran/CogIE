@@ -23,6 +23,7 @@ class Trainer:
             dev_data=None,
             n_epochs=10,
             batch_size=32,
+            dev_batch_size=None,
             loss=None,
             optimizer=None,
             scheduler=None,
@@ -33,6 +34,7 @@ class Trainer:
             gradient_accumulation_steps=1,
             num_workers=0,
             collate_fn=None,
+            dev_collate_fn=None,
             save_path=None,
             save_file=None,
             print_every=None,
@@ -104,12 +106,14 @@ class Trainer:
         self.metrics = metrics
         self.scheduler = scheduler
         self.batch_size = batch_size
+        self.dev_batch_size=dev_batch_size if dev_batch_size is not None else batch_size
         self.use_tqdm = use_tqdm
         self.callbacks = callbacks
         self.train_sampler = train_sampler
         self.dev_sampler = dev_sampler
         self.num_workers = num_workers
         self.collate_fn = collate_fn
+        self.dev_collate_fn=dev_collate_fn if dev_collate_fn is not None else collate_fn
         self.drop_last = drop_last
         self.device_ids = device_ids
         self.writer_path = writer_path
@@ -154,9 +158,9 @@ class Trainer:
             self.validate_steps = self.batch_count
 
         if self.dev_data:
-            self.dev_dataloader = DataLoader(dataset=self.dev_data, batch_size=self.batch_size,
+            self.dev_dataloader = DataLoader(dataset=self.dev_data, batch_size=self.dev_batch_size,
                                              sampler=self.dev_sampler, drop_last=self.drop_last,
-                                             collate_fn=self.collate_fn)
+                                             collate_fn=self.dev_collate_fn)
         self.model = module2parallel(self.model, self.device_ids)
 
         if self.writer_path:

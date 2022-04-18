@@ -15,6 +15,7 @@ __all__ = [
     "ClassifyFPreRecMetric",
     "SpanFPreRecMetric",
     "SPOMetric",
+    "CASEEMetric",
     "Predictor",
     "NerPredictor",
     "EtPredictor",
