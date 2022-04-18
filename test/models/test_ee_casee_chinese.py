@@ -9,7 +9,19 @@ import argparse
 from transformers import get_linear_schedule_with_warmup
 from transformers import AdamW
 torch.cuda.set_device(8)
+import random
+import numpy as np
+import os
 device = torch.device('cuda:8')
+def seed_everything(seed=0):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+seed_everything(seed=0)
 def parse_args():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
@@ -29,11 +41,11 @@ def parse_args():
     parser.add_argument('--fp16', action='store_true', help="Whether to use 16-bit (mixed) precision (through NVIDIA apex) instead of 32-bit")
     parser.add_argument('--fp16_opt_level', type=str, default='O1', help="For fp16: Apex AMP optimization level selected in ['O0', 'O1', 'O2', and 'O3']." "See details at https://nvidia.github.io/apex/amp.html")
 
-    parser.add_argument("--seed", type=int, default=42, help="Random seed.")
+    parser.add_argument("--seed", type=int, default=0, help="Random seed.")
     parser.add_argument("--lr_bert", type=float, default=2e-5, help="Learning rate for BERT.")
     parser.add_argument("--lr_task", type=float, default=1e-4, help="Learning rate for task layers.")
     parser.add_argument("--warmup", type=float, default=0.1, help="Warm up value.")
-    parser.add_argument("--batch_size", type=int, default=10, help="Batch_size.")
+    parser.add_argument("--batch_size", type=int, default=8, help="Batch_size.")
     parser.add_argument("--epochs_num", type=int, default=20, help="Number of epochs.")
     parser.add_argument("--report_steps", type=int, default=5, help="Specific steps to print prompt.")
 
@@ -44,7 +56,7 @@ def parse_args():
     # Model options.
     parser.add_argument("--w1", type=float, default=1.0)
     parser.add_argument("--w2", type=float, default=1.0)
-    parser.add_argument("--w3", type=float, default=1.0)
+    parser.add_argument("--w3", type=float, default=0.1)
     parser.add_argument("--pow_0", type=int, default=1)
     parser.add_argument("--pow_1", type=int, default=1)
     parser.add_argument("--pow_2", type=int, default=1)
@@ -80,7 +92,7 @@ dev_dataset = DataTableSet(dev_datable, to_device=False)
 test_datable = processor.process_test(test_data)
 test_dataset = DataTableSet(test_datable, to_device=False)
 
-model =CasEE(config,
+model =CasEE(config=config,
              trigger_vocabulary=processor.get_trigger_vocabulary(),
              argument_vocabulary=processor.get_argument_vocabulary(),
              type_num=len(processor.get_trigger_vocabulary()),
@@ -94,7 +106,8 @@ loss = {"loss_0":nn.BCELoss(reduction='none'),
 
 bert_params = list(map(id, model.bert.parameters()))
 other_params = filter(lambda p: id(p) not in bert_params, model.parameters())
-optimizer_grouped_parameters = [{'params': model.bert.parameters()}, {'params': other_params, 'lr':1e-4}]
+# optimizer_grouped_parameters = [{'params': model.bert.parameters()}, {'params': other_params, 'lr':1e-4}]
+optimizer_grouped_parameters = [{'params': model.bert.parameters()}, {'params': other_params, 'lr':3e-5}]
 optimizer = AdamW(optimizer_grouped_parameters, lr= 2e-5, correct_bias=False)
 # optimizer =optim.Adam(model.parameters(), lr=0.00005)
 metric = CASEEMetric(test_path='../../../cognlp/data/ee/finance/data/old_test.json')
@@ -119,7 +132,7 @@ trainer = Trainer(model,
                   print_every=None,
                   scheduler_steps=None,
                   validate_steps=1000,
-                  save_steps=1000,
+                  save_steps=None,
                   grad_norm=1.0,
                   use_tqdm=True,
                   device=device,

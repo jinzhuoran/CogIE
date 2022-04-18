@@ -7,7 +7,6 @@ import numpy as np
 from tqdm import tqdm
 from sklearn.metrics import *
 
-
 def gelu(x):
     return x * 0.5 * (1.0 + torch.erf(x / math.sqrt(2.0)))
 
@@ -136,7 +135,6 @@ class MultiHeadedAttention(nn.Module):
 
 
 
-
 class TypeCls(nn.Module):
     def __init__(self, config):
         super(TypeCls, self).__init__()
@@ -253,7 +251,6 @@ class CasEE(BaseModule):
         self.trigger_vocabulary=trigger_vocabulary
         self.argument_vocabulary=argument_vocabulary
         self.schema_id=schema_id
-        self.config=config
         self.bert_model=bert_model
         self.bert =BertModel.from_pretrained(self.bert_model)
         self.multi_piece=multi_piece
@@ -263,12 +260,18 @@ class CasEE(BaseModule):
         config.type_num = type_num
         config.hidden_size=768
 
+        self.config = config
+        self.args_num = config.args_num
         self.text_seq_len = config.seq_length
 
         self.type_cls = TypeCls(config)
         self.trigger_rec = TriggerRec(config, config.hidden_size)
-        self.args_rec = ArgsRec(config, config.hidden_size, self.config.args_num, self.text_seq_len, pos_emb_size)
+        self.args_rec = ArgsRec(config, config.hidden_size, self.args_num, self.text_seq_len, pos_emb_size)
         self.dropout = nn.Dropout(config.decoder_dropout)
+
+        self.loss_0 = nn.BCELoss(reduction='none')
+        self.loss_1 = nn.BCELoss(reduction='none')
+        self.loss_2 = nn.BCELoss(reduction='none')
 
     def forward(self, tokens,  mask, head_indexes,type_id, type_vec, trigger_s_vec, trigger_e_vec, relative_pos, trigger_mask, args_s_vec, args_e_vec, args_mask,loss_function):
         '''
@@ -292,10 +295,9 @@ class CasEE(BaseModule):
         #     output_emb[i] = torch.index_select(output_emb[i], 0, head_indexes[i])
         #     mask[i] = torch.index_select(mask[i], 0, head_indexes[i])
 
-
         p_type, type_emb = self.type_cls(output_emb, mask)
         p_type = p_type.pow(self.config.pow_0)
-        type_loss = loss_function["loss_0"](p_type, type_vec)
+        type_loss = self.loss_0(p_type, type_vec)
         type_loss = torch.sum(type_loss)
 
 
@@ -319,26 +321,23 @@ class CasEE(BaseModule):
         # output_emb=output_emb[event_flag]
         # if event_num>0:
 
-
-
         type_rep = type_emb[type_id, :]
         p_s, p_e, text_rep_type = self.trigger_rec(type_rep, output_emb, mask)
         p_s = p_s.pow(self.config.pow_1)
         p_e = p_e.pow(self.config.pow_1)
         p_s = p_s.squeeze(-1)
         p_e = p_e.squeeze(-1)
-        trigger_loss_s =  loss_function["loss_1"](p_s, trigger_s_vec)
-        trigger_loss_e =  loss_function["loss_1"](p_e, trigger_e_vec)
+        trigger_loss_s = self.loss_1(p_s, trigger_s_vec)
+        trigger_loss_e = self.loss_1(p_e, trigger_e_vec)
         mask_t = mask.float()  # [b, t]
         trigger_loss_s = torch.sum(trigger_loss_s.mul(mask_t))
         trigger_loss_e = torch.sum(trigger_loss_e.mul(mask_t))
 
-
         p_s, p_e, type_soft_constrain = self.args_rec(text_rep_type, relative_pos, trigger_mask, mask, type_rep)
         p_s = p_s.pow(self.config.pow_2)
         p_e = p_e.pow(self.config.pow_2)
-        args_loss_s =  loss_function["loss_2"](p_s, args_s_vec.transpose(1, 2))  # [b, t, l]
-        args_loss_e =  loss_function["loss_2"](p_e, args_e_vec.transpose(1, 2))
+        args_loss_s = self.loss_2(p_s, args_s_vec.transpose(1, 2))  # [b, t, l]
+        args_loss_e = self.loss_2(p_e, args_e_vec.transpose(1, 2))
         mask_a = mask.unsqueeze(-1).expand_as(args_loss_s).float()  # [b, t, l]
         args_loss_s = torch.sum(args_loss_s.mul(mask_a))
         args_loss_e = torch.sum(args_loss_e.mul(mask_a))
@@ -349,10 +348,10 @@ class CasEE(BaseModule):
         type_loss = self.config.w1 * type_loss
         trigger_loss = self.config.w2 * trigger_loss
         args_loss = self.config.w3 * args_loss
-        loss = type_loss + trigger_loss + args_loss#+ args_loss
-        print("loss",loss.item(),"type_loss",type_loss.item(),"trigger_loss",trigger_loss.item(),"args_loss",args_loss.item())#,"trigger_loss",trigger_loss.item(),"args_loss",args_loss.item()
-        # return loss, type_loss, trigger_loss, args_loss
-        return loss, type_loss, None, None
+        loss = type_loss + trigger_loss + args_loss
+        print("loss", loss.item(), "type_loss", type_loss.item(), " trigger_loss", trigger_loss.item(), "args_loss",
+              args_loss.item())
+        return loss, type_loss, trigger_loss, args_loss
 
     def plm(self, tokens,  mask):
         # assert tokens.size(0) == 1
@@ -394,8 +393,8 @@ class CasEE(BaseModule):
         mask = mask.unsqueeze(-1).expand_as(p_s).float()  # [b, t, l]
         p_s = p_s.mul(mask)
         p_e = p_e.mul(mask)
-        p_s = p_s.view(self.text_seq_len, self.config.args_num).data.cpu().numpy()
-        p_e = p_e.view(self.text_seq_len, self.config.args_num).data.cpu().numpy()
+        p_s = p_s.view(self.text_seq_len, self.args_num).data.cpu().numpy()
+        p_e = p_e.view(self.text_seq_len, self.args_num).data.cpu().numpy()
         return p_s, p_e, type_soft_constrain
 
     def loss(self, batch, loss_function):
