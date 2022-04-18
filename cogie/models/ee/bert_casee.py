@@ -246,8 +246,10 @@ class ArgsRec(nn.Module):
 
 
 class CasEE(BaseModule):
-    def __init__(self, config,trigger_vocabulary,argument_vocabulary,  pos_emb_size,args_num,type_num,device,bert_model='bert-base-cased',multi_piece="average",schema_id=None):
+    def __init__(self, config,trigger_max_span,argument_max_span,trigger_vocabulary,argument_vocabulary,  pos_emb_size,args_num,type_num,device,bert_model='bert-base-cased',multi_piece="average",schema_id=None):
         super(CasEE, self).__init__()
+        self.trigger_max_span=trigger_max_span
+        self.argument_max_span=argument_max_span
         self.trigger_vocabulary=trigger_vocabulary
         self.argument_vocabulary=argument_vocabulary
         self.schema_id=schema_id
@@ -474,7 +476,7 @@ class CasEE(BaseModule):
         #     mask[i] = torch.index_select(mask[i], 0, head_indexes[i])
 
         args_id = {id_args[k]: k for k in id_args}
-        # args_len_dict = {args_id[k]: ARG_LEN_DICT[k] for k in ARG_LEN_DICT}
+        args_len_dict = {args_id[k]: self.argument_max_span[k] for k in self.argument_max_span}
 
         p_type, type_emb = self.predict_type(text_emb, mask)
         type_pred = np.array(p_type > threshold_0, dtype=bool)
@@ -493,8 +495,8 @@ class CasEE(BaseModule):
                 es = trigger_e[trigger_e >= i]
                 if len(es) > 0:
                     e = es[0]
-                    # if e - i + 1 <= TRI_LEN:
-                    trigger_spans.append((i, e))
+                    if e - i + 1 <= 5:
+                        trigger_spans.append((i, e))
 
             for k, span in enumerate(trigger_spans):
                 rp = self.get_relative_pos(span[0], span[1], seq_len)
@@ -526,10 +528,10 @@ class CasEE(BaseModule):
                         es = args_e[args_e >= j]
                         if len(es) > 0:
                             e = es[0]
-                            # if e - j + 1 <= args_len_dict[i]:
-                            pred_arg = {'span': [int(j) - 1, int(e) + 1 - 1],
-                                        'word': content[int(j) - 1:int(e) + 1 - 1]}  # remove <CLS> token
-                            pred_args[id_args[i]].append(pred_arg)
+                            if e - j + 1 <= args_len_dict[i]:
+                                pred_arg = {'span': [int(j) - 1, int(e) + 1 - 1],
+                                            'word': content[int(j) - 1:int(e) + 1 - 1]}  # remove <CLS> token
+                                pred_args[id_args[i]].append(pred_arg)
 
                 pred_event_one['args'] = pred_args
                 events_pred.append(pred_event_one)

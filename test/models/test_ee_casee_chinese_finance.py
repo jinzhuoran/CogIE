@@ -93,6 +93,8 @@ test_datable = processor.process_test(test_data)
 test_dataset = DataTableSet(test_datable, to_device=False)
 
 model =CasEE(config=config,
+             trigger_max_span=processor.get_trigger_max_span_len(),
+             argument_max_span=processor.get_argument_max_span_len(),
              trigger_vocabulary=processor.get_trigger_vocabulary(),
              argument_vocabulary=processor.get_argument_vocabulary(),
              type_num=len(processor.get_trigger_vocabulary()),
@@ -117,7 +119,7 @@ metric = CASEEMetric(test_path='../../../cognlp/data/ee/finance/data/old_test.js
 trainer = Trainer(model,
                   train_dataset,
                   dev_data=test_dataset,
-                  n_epochs=2000,
+                  n_epochs=40,
                   batch_size=8,
                   dev_batch_size=1,
                   loss=loss,

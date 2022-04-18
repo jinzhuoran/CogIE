@@ -63,6 +63,18 @@ class FINANCECASEEProcessor:
                                                                               in argument_type_list]
         self.trigger_type_num = len(self.trigger_vocabulary)
         self.argument_type_num =len(self.argument_vocabulary)
+        self.trigger_max_span_len = {}
+        self.argument_max_span_len = {}
+        for name in self.trigger_vocabulary.word2idx:
+            self.trigger_max_span_len[name] = 1
+        for name in self.argument_vocabulary.word2idx:
+            self.argument_max_span_len[name] = 1
+
+    def get_trigger_max_span_len(self):
+        return self.trigger_max_span_len
+
+    def get_argument_max_span_len(self):
+        return self.argument_max_span_len
 
     def process_train(self, dataset):
         datable = DataTable()
@@ -106,6 +118,7 @@ class FINANCECASEEProcessor:
             r_pos = [p + self.max_length for p in r_pos]
             if index is not None:
                 span = triggers[index]
+                self.trigger_max_span_len[type] = max(self.trigger_max_span_len[type], span[1] - span[0])
                 start_idx=span[0] + 1
                 end_idx=span[1] + 1 - 1
                 r_pos = list(range(-start_idx, 0)) + [0] * (end_idx - start_idx + 1) + list(range(1, self.max_length - end_idx))
@@ -138,6 +151,8 @@ class FINANCECASEEProcessor:
                 # e_r_i = self.args_e_id[args_name + '_e']
                 arg_mask[s_r_i] = 1
                 for span in args[args_name]:
+                    self.argument_max_span_len[args_name] = max(span[1] - span[0],
+                                                                self.argument_max_span_len[args_name])
                     args_s[s_r_i][span[0] + 1] = 1
                     args_e[e_r_i][span[1] + 1 - 1] = 1
 
@@ -203,6 +218,7 @@ class FINANCECASEEProcessor:
             r_pos = [p + self.max_length for p in r_pos]
             if index is not None:
                 span = triggers[index]
+                self.trigger_max_span_len[type] = max(self.trigger_max_span_len[type], span[1] - span[0])
                 start_idx = span[0] + 1
                 end_idx = span[1] + 1 - 1
                 r_pos = list(range(-start_idx, 0)) + [0] * (end_idx - start_idx + 1) + list(
@@ -220,6 +236,8 @@ class FINANCECASEEProcessor:
                 s_r_i = self.argument_vocabulary.word2idx[args_name]
                 # s_r_i = self.args_s_id[args_name + '_s']
                 for span in args[args_name]:
+                    self.argument_max_span_len[args_name] = max(span[1] - span[0],
+                                                                self.argument_max_span_len[args_name])
                     args_truth[s_r_i].append((span[0] + 1, span[1] + 1 - 1))
             if type_id != -1:
                 datable("data_ids", id)
