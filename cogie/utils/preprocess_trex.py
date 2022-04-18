@@ -7,7 +7,7 @@ import random
 input_path = "/data/hongbang/cognlp/data/ner/trex/data/full_data"
 output_path = "/data/hongbang/cognlp/data/ner/trex/data/processed_data"
 num = 20
-train,dev,test = 8,1,1
+train,dev,test = 9,0.05,0.95
 
 def load_json(file_path):
     if not isinstance(file_path, Path):
