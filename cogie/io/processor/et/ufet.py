@@ -7,6 +7,10 @@ import nltk
 import numpy as np
 import torch
 from torch.nn.utils.rnn import pad_sequence
+from cogie.utils.box4et_constant import ANSWER_NUM_DICT
+from cogie.utils import Vocabulary
+import os
+from cogie.utils.box4et_constant import load_vocab_dict
 
 class UfetProcessor(Processor):
     def __init__(self, label_list=None, path=None, padding=None, unknown=None, bert_model='bert-base-cased',
@@ -29,11 +33,17 @@ class UfetProcessor(Processor):
             datable('target', target)
         return datable
 
+    def load_vocabulary(self, path):
+        file = os.path.join(path, 'ufet_types.txt')
+        self.vocabulary = Vocabulary()
+        self.vocabulary._word2idx = load_vocab_dict(file)
+        self.vocabulary._idx2word =  {v: k for k, v in self.vocabulary._word2idx.items()}
+
 def process_ufet(sample,tokenizer,vocab,max_seq_length):
     ex_id,left_seq,right_seq,mention_seq,label = sample
     mention = ' '.join(mention_seq)
     context = ' '.join(left_seq + mention_seq + right_seq)
-    target = np.zeros(len(vocab),np.float32)
+    target = np.zeros(ANSWER_NUM_DICT["ufet"],np.float32)
     inputs = tokenizer.encode_plus(
         mention,context,
         add_special_tokens=True,

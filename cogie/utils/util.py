@@ -228,7 +228,7 @@ def load_model(model, model_path):
     if isinstance(model, nn.DataParallel):
         model.module.load_state_dict(states)
     else:
-        model.load_state_dict(states)
+        model.load_state_dict(states,strict=False)
     return model
 
 
