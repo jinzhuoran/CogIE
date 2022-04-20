@@ -42,20 +42,20 @@ class FINANCECASEEProcessor:
             e = self.argument_type_list[i] + '_e'
             self.args_e_id[e] = i
 
-        if os.path.exists(self.trigger_path):
-            self.trigger_vocabulary = Vocabulary.load(self.trigger_path)
-        else:
-            self.trigger_vocabulary = Vocabulary(padding=None, unknown=None)
-            self.trigger_vocabulary.add_word_lst(self.trigger_type_list)
-            self.trigger_vocabulary.build_vocab()
-            self.trigger_vocabulary.save(self.trigger_path)
-        if os.path.exists(self.argument_path):
-            self.argument_vocabulary = Vocabulary.load(self.argument_path)
-        else:
-            self.argument_vocabulary = Vocabulary(padding=None, unknown=None)
-            self.argument_vocabulary.add_word_lst(self.argument_type_list)
-            self.argument_vocabulary.build_vocab()
-            self.argument_vocabulary.save(self.argument_path)
+        # if os.path.exists(self.trigger_path):
+        #     self.trigger_vocabulary = Vocabulary.load(self.trigger_path)
+        # else:
+        self.trigger_vocabulary = Vocabulary(padding=None, unknown=None)
+        self.trigger_vocabulary.add_word_lst(['质押', '股份股权转让', '投资', '减持', '起诉', '收购', '判决', '签署合同', '担保', '中标'])
+        self.trigger_vocabulary.build_vocab()
+        self.trigger_vocabulary.save(self.trigger_path)
+        # if os.path.exists(self.argument_path):
+        #     self.argument_vocabulary = Vocabulary.load(self.argument_path)
+        # else:
+        self.argument_vocabulary = Vocabulary(padding=None, unknown=None)
+        self.argument_vocabulary.add_word_lst(['collateral', 'obj-per', 'sub-per', 'sub-org', 'share-per', 'title', 'way', 'money', 'obj-org', 'number', 'amount', 'proportion', 'target-company', 'date', 'sub', 'share-org', 'obj', 'institution'])
+        self.argument_vocabulary.build_vocab()
+        self.argument_vocabulary.save(self.argument_path)
 
         self.schema_id = {}
         for trigger_type, argument_type_list in self.schema_str.items():
@@ -63,6 +63,18 @@ class FINANCECASEEProcessor:
                                                                               in argument_type_list]
         self.trigger_type_num = len(self.trigger_vocabulary)
         self.argument_type_num =len(self.argument_vocabulary)
+        self.trigger_max_span_len = {}
+        self.argument_max_span_len = {}
+        for name in self.trigger_vocabulary.word2idx:
+            self.trigger_max_span_len[name] = 1
+        for name in self.argument_vocabulary.word2idx:
+            self.argument_max_span_len[name] = 1
+
+    def get_trigger_max_span_len(self):
+        return self.trigger_max_span_len
+
+    def get_argument_max_span_len(self):
+        return self.argument_max_span_len
 
     def process_train(self, dataset):
         datable = DataTable()
@@ -70,25 +82,33 @@ class FINANCECASEEProcessor:
             tqdm(zip(dataset["content"], dataset["index"], dataset["type"],
                      dataset["args"], dataset["occur"], dataset["triggers"],dataset["id"]),total=len(dataset["content"])):
             tokens_id, is_heads, head_indexes = [], [], []
-            content = list(map(lambda x: str(x), content))
-            words = ['[CLS]'] +content + ['[SEP]']
-            for w in words:
-                tokens = self.tokenizer.tokenize(w) if w not in ['[CLS]', '[SEP]'] else [w]
-                tokens_w_id = self.tokenizer.convert_tokens_to_ids(tokens)
-                # if w in ['[CLS]', '[SEP]']:
-                #     is_head = [0]
-                # else:
-                is_head = [1] + [0] * (len(tokens) - 1)
-                tokens_id.extend(tokens_w_id)
-                is_heads.extend(is_head)
-            token_masks = [True] * len(tokens_id) + [False] * (self.max_length - len(tokens_id))
-            token_masks=token_masks[: self.max_length]
-            tokens_id = tokens_id + [0] * (self.max_length - len(tokens_id))
-            tokens_id=tokens_id[: self.max_length]
-            is_heads=is_heads[: self.max_length]
-            for i in range(len(is_heads)):
-                if is_heads[i]:
-                    head_indexes.append(i)
+            # content = list(map(lambda x: str(x), content))
+            # words = ['[CLS]'] +content + ['[SEP]']
+            # for w in words:
+            #     tokens = self.tokenizer.tokenize(w) if w not in ['[CLS]', '[SEP]'] else [w]
+            #     tokens_w_id = self.tokenizer.convert_tokens_to_ids(tokens)
+            #     # if w in ['[CLS]', '[SEP]']:
+            #     #     is_head = [0]
+            #     # else:
+            #     is_head = [1] + [0] * (len(tokens) - 1)
+            #     tokens_id.extend(tokens_w_id)
+            #     is_heads.extend(is_head)
+            # token_masks = [True] * len(tokens_id) + [False] * (self.max_length - len(tokens_id))
+            # token_masks=token_masks[: self.max_length]
+            # tokens_id = tokens_id + [0] * (self.max_length - len(tokens_id))
+            # tokens_id=tokens_id[: self.max_length]
+            # is_heads=is_heads[: self.max_length]
+            # for i in range(len(is_heads)):
+            #     if is_heads[i]:
+            #         head_indexes.append(i)
+            # head_indexes = head_indexes + [0] * (self.max_length - len(head_indexes))
+            # head_indexes=head_indexes[: self.max_length]
+            data_content = [token.lower() for token in content]  # 字符串遍历是一次取一个字，把字放在列表里面
+            data_content = list(data_content)  # 再把这个列表强制类型转换一下，继续变成列表
+            inputs = self.tokenizer.encode_plus(data_content, add_special_tokens=True, max_length=self.max_length,
+                                                truncation=True, padding='max_length')
+            tokens_id, segs, token_masks = inputs["input_ids"], inputs["token_type_ids"], inputs['attention_mask']
+            head_indexes=list(np.arange(0,sum(token_masks)))
             head_indexes = head_indexes + [0] * (self.max_length - len(head_indexes))
             head_indexes=head_indexes[: self.max_length]
 
@@ -106,6 +126,7 @@ class FINANCECASEEProcessor:
             r_pos = [p + self.max_length for p in r_pos]
             if index is not None:
                 span = triggers[index]
+                self.trigger_max_span_len[type] = max(self.trigger_max_span_len[type], span[1] - span[0])
                 start_idx=span[0] + 1
                 end_idx=span[1] + 1 - 1
                 r_pos = list(range(-start_idx, 0)) + [0] * (end_idx - start_idx + 1) + list(range(1, self.max_length - end_idx))
@@ -138,6 +159,8 @@ class FINANCECASEEProcessor:
                 # e_r_i = self.args_e_id[args_name + '_e']
                 arg_mask[s_r_i] = 1
                 for span in args[args_name]:
+                    self.argument_max_span_len[args_name] = max(span[1] - span[0],
+                                                                self.argument_max_span_len[args_name])
                     args_s[s_r_i][span[0] + 1] = 1
                     args_e[e_r_i][span[1] + 1 - 1] = 1
 
@@ -156,7 +179,7 @@ class FINANCECASEEProcessor:
                 datable("a_s", args_s)
                 datable("a_e", args_e)
                 datable("a_m", arg_mask)
-                datable("content", content)
+                datable("content", content )
 
         return datable
 
@@ -167,25 +190,33 @@ class FINANCECASEEProcessor:
                          dataset["args"], dataset["occur"], dataset["triggers"], dataset["id"]),
                      total=len(dataset["content"])):
             tokens_id, is_heads, head_indexes = [], [], []
-            content = list(map(lambda x: str(x), content))
-            words = ['[CLS]'] + content + ['[SEP]']
-            for w in words:
-                tokens = self.tokenizer.tokenize(w) if w not in ['[CLS]', '[SEP]'] else [w]
-                tokens_w_id = self.tokenizer.convert_tokens_to_ids(tokens)
-                # if w in ['[CLS]', '[SEP]']:
-                #     is_head = [0]
-                # else:
-                is_head = [1] + [0] * (len(tokens) - 1)
-                tokens_id.extend(tokens_w_id)
-                is_heads.extend(is_head)
-            token_masks = [True] * len(tokens_id) + [False] * (self.max_length - len(tokens_id))
-            token_masks = token_masks[: self.max_length]
-            tokens_id = tokens_id + [0] * (self.max_length - len(tokens_id))
-            tokens_id = tokens_id[: self.max_length]
-            is_heads = is_heads[: self.max_length]
-            for i in range(len(is_heads)):
-                if is_heads[i]:
-                    head_indexes.append(i)
+            # content = list(map(lambda x: str(x), content))
+            # words = ['[CLS]'] +content + ['[SEP]']
+            # for w in words:
+            #     tokens = self.tokenizer.tokenize(w) if w not in ['[CLS]', '[SEP]'] else [w]
+            #     tokens_w_id = self.tokenizer.convert_tokens_to_ids(tokens)
+            #     # if w in ['[CLS]', '[SEP]']:
+            #     #     is_head = [0]
+            #     # else:
+            #     is_head = [1] + [0] * (len(tokens) - 1)
+            #     tokens_id.extend(tokens_w_id)
+            #     is_heads.extend(is_head)
+            # token_masks = [True] * len(tokens_id) + [False] * (self.max_length - len(tokens_id))
+            # token_masks=token_masks[: self.max_length]
+            # tokens_id = tokens_id + [0] * (self.max_length - len(tokens_id))
+            # tokens_id=tokens_id[: self.max_length]
+            # is_heads=is_heads[: self.max_length]
+            # for i in range(len(is_heads)):
+            #     if is_heads[i]:
+            #         head_indexes.append(i)
+            # head_indexes = head_indexes + [0] * (self.max_length - len(head_indexes))
+            # head_indexes=head_indexes[: self.max_length]
+            data_content = [token.lower() for token in content]  # 字符串遍历是一次取一个字，把字放在列表里面
+            data_content = list(data_content)  # 再把这个列表强制类型转换一下，继续变成列表
+            inputs = self.tokenizer.encode_plus(data_content, add_special_tokens=True, max_length=self.max_length,
+                                                truncation=True, padding='max_length')
+            tokens_id, segs, token_masks = inputs["input_ids"], inputs["token_type_ids"], inputs['attention_mask']
+            head_indexes = list(np.arange(0, sum(token_masks)))
             head_indexes = head_indexes + [0] * (self.max_length - len(head_indexes))
             head_indexes = head_indexes[: self.max_length]
 
@@ -203,6 +234,7 @@ class FINANCECASEEProcessor:
             r_pos = [p + self.max_length for p in r_pos]
             if index is not None:
                 span = triggers[index]
+                self.trigger_max_span_len[type] = max(self.trigger_max_span_len[type], span[1] - span[0])
                 start_idx = span[0] + 1
                 end_idx = span[1] + 1 - 1
                 r_pos = list(range(-start_idx, 0)) + [0] * (end_idx - start_idx + 1) + list(
@@ -220,6 +252,8 @@ class FINANCECASEEProcessor:
                 s_r_i = self.argument_vocabulary.word2idx[args_name]
                 # s_r_i = self.args_s_id[args_name + '_s']
                 for span in args[args_name]:
+                    self.argument_max_span_len[args_name] = max(span[1] - span[0],
+                                                                self.argument_max_span_len[args_name])
                     args_truth[s_r_i].append((span[0] + 1, span[1] + 1 - 1))
             if type_id != -1:
                 datable("data_ids", id)
@@ -233,7 +267,7 @@ class FINANCECASEEProcessor:
                 datable("triggers_truth", triggers_truth)
                 datable("args_truth", args_truth)
                 datable("head_indexes", head_indexes)
-                datable("content", content)
+                datable("content", content )
         return datable
 
 
@@ -245,25 +279,33 @@ class FINANCECASEEProcessor:
                          dataset["args"], dataset["occur"], dataset["triggers"], dataset["id"]),
                      total=len(dataset["content"])):
             tokens_id, is_heads, head_indexes = [], [], []
-            content = list(map(lambda x: str(x), content))
-            words = ['[CLS]'] + content + ['[SEP]']
-            for w in words:
-                tokens = self.tokenizer.tokenize(w) if w not in ['[CLS]', '[SEP]'] else [w]
-                tokens_w_id = self.tokenizer.convert_tokens_to_ids(tokens)
-                # if w in ['[CLS]', '[SEP]']:
-                #     is_head = [0]
-                # else:
-                is_head = [1] + [0] * (len(tokens) - 1)
-                tokens_id.extend(tokens_w_id)
-                is_heads.extend(is_head)
-            token_masks = [True] * len(tokens_id) + [False] * (self.max_length - len(tokens_id))
-            token_masks = token_masks[: self.max_length]
-            tokens_id = tokens_id + [0] * (self.max_length - len(tokens_id))
-            tokens_id = tokens_id[: self.max_length]
-            is_heads = is_heads[: self.max_length]
-            for i in range(len(is_heads)):
-                if is_heads[i]:
-                    head_indexes.append(i)
+            # content = list(map(lambda x: str(x), content))
+            # words = ['[CLS]'] +content + ['[SEP]']
+            # for w in words:
+            #     tokens = self.tokenizer.tokenize(w) if w not in ['[CLS]', '[SEP]'] else [w]
+            #     tokens_w_id = self.tokenizer.convert_tokens_to_ids(tokens)
+            #     # if w in ['[CLS]', '[SEP]']:
+            #     #     is_head = [0]
+            #     # else:
+            #     is_head = [1] + [0] * (len(tokens) - 1)
+            #     tokens_id.extend(tokens_w_id)
+            #     is_heads.extend(is_head)
+            # token_masks = [True] * len(tokens_id) + [False] * (self.max_length - len(tokens_id))
+            # token_masks=token_masks[: self.max_length]
+            # tokens_id = tokens_id + [0] * (self.max_length - len(tokens_id))
+            # tokens_id=tokens_id[: self.max_length]
+            # is_heads=is_heads[: self.max_length]
+            # for i in range(len(is_heads)):
+            #     if is_heads[i]:
+            #         head_indexes.append(i)
+            # head_indexes = head_indexes + [0] * (self.max_length - len(head_indexes))
+            # head_indexes=head_indexes[: self.max_length]
+            data_content = [token.lower() for token in content]  # 字符串遍历是一次取一个字，把字放在列表里面
+            data_content = list(data_content)  # 再把这个列表强制类型转换一下，继续变成列表
+            inputs = self.tokenizer.encode_plus(data_content, add_special_tokens=True, max_length=self.max_length,
+                                                truncation=True, padding='max_length')
+            tokens_id, segs, token_masks = inputs["input_ids"], inputs["token_type_ids"], inputs['attention_mask']
+            head_indexes = list(np.arange(0, sum(token_masks)))
             head_indexes = head_indexes + [0] * (self.max_length - len(head_indexes))
             head_indexes = head_indexes[: self.max_length]
 
@@ -311,7 +353,7 @@ class FINANCECASEEProcessor:
                 datable("triggers_truth", triggers_truth)
                 datable("args_truth", args_truth)
                 datable("head_indexes", head_indexes)
-                datable("content", content)
+                datable("content", content )
         return datable
 
     def get_trigger_vocabulary(self):
