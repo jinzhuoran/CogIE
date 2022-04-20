@@ -82,25 +82,33 @@ class FINANCECASEEProcessor:
             tqdm(zip(dataset["content"], dataset["index"], dataset["type"],
                      dataset["args"], dataset["occur"], dataset["triggers"],dataset["id"]),total=len(dataset["content"])):
             tokens_id, is_heads, head_indexes = [], [], []
-            content = list(map(lambda x: str(x), content))
-            words = ['[CLS]'] +content + ['[SEP]']
-            for w in words:
-                tokens = self.tokenizer.tokenize(w) if w not in ['[CLS]', '[SEP]'] else [w]
-                tokens_w_id = self.tokenizer.convert_tokens_to_ids(tokens)
-                # if w in ['[CLS]', '[SEP]']:
-                #     is_head = [0]
-                # else:
-                is_head = [1] + [0] * (len(tokens) - 1)
-                tokens_id.extend(tokens_w_id)
-                is_heads.extend(is_head)
-            token_masks = [True] * len(tokens_id) + [False] * (self.max_length - len(tokens_id))
-            token_masks=token_masks[: self.max_length]
-            tokens_id = tokens_id + [0] * (self.max_length - len(tokens_id))
-            tokens_id=tokens_id[: self.max_length]
-            is_heads=is_heads[: self.max_length]
-            for i in range(len(is_heads)):
-                if is_heads[i]:
-                    head_indexes.append(i)
+            # content = list(map(lambda x: str(x), content))
+            # words = ['[CLS]'] +content + ['[SEP]']
+            # for w in words:
+            #     tokens = self.tokenizer.tokenize(w) if w not in ['[CLS]', '[SEP]'] else [w]
+            #     tokens_w_id = self.tokenizer.convert_tokens_to_ids(tokens)
+            #     # if w in ['[CLS]', '[SEP]']:
+            #     #     is_head = [0]
+            #     # else:
+            #     is_head = [1] + [0] * (len(tokens) - 1)
+            #     tokens_id.extend(tokens_w_id)
+            #     is_heads.extend(is_head)
+            # token_masks = [True] * len(tokens_id) + [False] * (self.max_length - len(tokens_id))
+            # token_masks=token_masks[: self.max_length]
+            # tokens_id = tokens_id + [0] * (self.max_length - len(tokens_id))
+            # tokens_id=tokens_id[: self.max_length]
+            # is_heads=is_heads[: self.max_length]
+            # for i in range(len(is_heads)):
+            #     if is_heads[i]:
+            #         head_indexes.append(i)
+            # head_indexes = head_indexes + [0] * (self.max_length - len(head_indexes))
+            # head_indexes=head_indexes[: self.max_length]
+            data_content = [token.lower() for token in content]  # 字符串遍历是一次取一个字，把字放在列表里面
+            data_content = list(data_content)  # 再把这个列表强制类型转换一下，继续变成列表
+            inputs = self.tokenizer.encode_plus(data_content, add_special_tokens=True, max_length=self.max_length,
+                                                truncation=True, padding='max_length')
+            tokens_id, segs, token_masks = inputs["input_ids"], inputs["token_type_ids"], inputs['attention_mask']
+            head_indexes=list(np.arange(0,sum(token_masks)))
             head_indexes = head_indexes + [0] * (self.max_length - len(head_indexes))
             head_indexes=head_indexes[: self.max_length]
 
@@ -182,25 +190,33 @@ class FINANCECASEEProcessor:
                          dataset["args"], dataset["occur"], dataset["triggers"], dataset["id"]),
                      total=len(dataset["content"])):
             tokens_id, is_heads, head_indexes = [], [], []
-            content = list(map(lambda x: str(x), content))
-            words = ['[CLS]'] + content + ['[SEP]']
-            for w in words:
-                tokens = self.tokenizer.tokenize(w) if w not in ['[CLS]', '[SEP]'] else [w]
-                tokens_w_id = self.tokenizer.convert_tokens_to_ids(tokens)
-                # if w in ['[CLS]', '[SEP]']:
-                #     is_head = [0]
-                # else:
-                is_head = [1] + [0] * (len(tokens) - 1)
-                tokens_id.extend(tokens_w_id)
-                is_heads.extend(is_head)
-            token_masks = [True] * len(tokens_id) + [False] * (self.max_length - len(tokens_id))
-            token_masks = token_masks[: self.max_length]
-            tokens_id = tokens_id + [0] * (self.max_length - len(tokens_id))
-            tokens_id = tokens_id[: self.max_length]
-            is_heads = is_heads[: self.max_length]
-            for i in range(len(is_heads)):
-                if is_heads[i]:
-                    head_indexes.append(i)
+            # content = list(map(lambda x: str(x), content))
+            # words = ['[CLS]'] +content + ['[SEP]']
+            # for w in words:
+            #     tokens = self.tokenizer.tokenize(w) if w not in ['[CLS]', '[SEP]'] else [w]
+            #     tokens_w_id = self.tokenizer.convert_tokens_to_ids(tokens)
+            #     # if w in ['[CLS]', '[SEP]']:
+            #     #     is_head = [0]
+            #     # else:
+            #     is_head = [1] + [0] * (len(tokens) - 1)
+            #     tokens_id.extend(tokens_w_id)
+            #     is_heads.extend(is_head)
+            # token_masks = [True] * len(tokens_id) + [False] * (self.max_length - len(tokens_id))
+            # token_masks=token_masks[: self.max_length]
+            # tokens_id = tokens_id + [0] * (self.max_length - len(tokens_id))
+            # tokens_id=tokens_id[: self.max_length]
+            # is_heads=is_heads[: self.max_length]
+            # for i in range(len(is_heads)):
+            #     if is_heads[i]:
+            #         head_indexes.append(i)
+            # head_indexes = head_indexes + [0] * (self.max_length - len(head_indexes))
+            # head_indexes=head_indexes[: self.max_length]
+            data_content = [token.lower() for token in content]  # 字符串遍历是一次取一个字，把字放在列表里面
+            data_content = list(data_content)  # 再把这个列表强制类型转换一下，继续变成列表
+            inputs = self.tokenizer.encode_plus(data_content, add_special_tokens=True, max_length=self.max_length,
+                                                truncation=True, padding='max_length')
+            tokens_id, segs, token_masks = inputs["input_ids"], inputs["token_type_ids"], inputs['attention_mask']
+            head_indexes = list(np.arange(0, sum(token_masks)))
             head_indexes = head_indexes + [0] * (self.max_length - len(head_indexes))
             head_indexes = head_indexes[: self.max_length]
 
@@ -263,25 +279,33 @@ class FINANCECASEEProcessor:
                          dataset["args"], dataset["occur"], dataset["triggers"], dataset["id"]),
                      total=len(dataset["content"])):
             tokens_id, is_heads, head_indexes = [], [], []
-            content = list(map(lambda x: str(x), content))
-            words = ['[CLS]'] + content + ['[SEP]']
-            for w in words:
-                tokens = self.tokenizer.tokenize(w) if w not in ['[CLS]', '[SEP]'] else [w]
-                tokens_w_id = self.tokenizer.convert_tokens_to_ids(tokens)
-                # if w in ['[CLS]', '[SEP]']:
-                #     is_head = [0]
-                # else:
-                is_head = [1] + [0] * (len(tokens) - 1)
-                tokens_id.extend(tokens_w_id)
-                is_heads.extend(is_head)
-            token_masks = [True] * len(tokens_id) + [False] * (self.max_length - len(tokens_id))
-            token_masks = token_masks[: self.max_length]
-            tokens_id = tokens_id + [0] * (self.max_length - len(tokens_id))
-            tokens_id = tokens_id[: self.max_length]
-            is_heads = is_heads[: self.max_length]
-            for i in range(len(is_heads)):
-                if is_heads[i]:
-                    head_indexes.append(i)
+            # content = list(map(lambda x: str(x), content))
+            # words = ['[CLS]'] +content + ['[SEP]']
+            # for w in words:
+            #     tokens = self.tokenizer.tokenize(w) if w not in ['[CLS]', '[SEP]'] else [w]
+            #     tokens_w_id = self.tokenizer.convert_tokens_to_ids(tokens)
+            #     # if w in ['[CLS]', '[SEP]']:
+            #     #     is_head = [0]
+            #     # else:
+            #     is_head = [1] + [0] * (len(tokens) - 1)
+            #     tokens_id.extend(tokens_w_id)
+            #     is_heads.extend(is_head)
+            # token_masks = [True] * len(tokens_id) + [False] * (self.max_length - len(tokens_id))
+            # token_masks=token_masks[: self.max_length]
+            # tokens_id = tokens_id + [0] * (self.max_length - len(tokens_id))
+            # tokens_id=tokens_id[: self.max_length]
+            # is_heads=is_heads[: self.max_length]
+            # for i in range(len(is_heads)):
+            #     if is_heads[i]:
+            #         head_indexes.append(i)
+            # head_indexes = head_indexes + [0] * (self.max_length - len(head_indexes))
+            # head_indexes=head_indexes[: self.max_length]
+            data_content = [token.lower() for token in content]  # 字符串遍历是一次取一个字，把字放在列表里面
+            data_content = list(data_content)  # 再把这个列表强制类型转换一下，继续变成列表
+            inputs = self.tokenizer.encode_plus(data_content, add_special_tokens=True, max_length=self.max_length,
+                                                truncation=True, padding='max_length')
+            tokens_id, segs, token_masks = inputs["input_ids"], inputs["token_type_ids"], inputs['attention_mask']
+            head_indexes = list(np.arange(0, sum(token_masks)))
             head_indexes = head_indexes + [0] * (self.max_length - len(head_indexes))
             head_indexes = head_indexes[: self.max_length]
 
