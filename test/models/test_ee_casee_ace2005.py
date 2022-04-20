@@ -1,3 +1,10 @@
+import sys
+
+sys.path.append('/data/mentianyi/code/CogIE')
+sys.path.append('/data/mentianyi/cognlp')
+
+
+
 from cogie import *
 import torch
 import torch.nn as nn
@@ -8,11 +15,12 @@ from cogie.io.processor.ee.ace2005_casee import ACE2005CASEEProcessor
 import argparse
 from transformers import get_linear_schedule_with_warmup
 from transformers import AdamW
-torch.cuda.set_device(8)
+from torch.utils.data import RandomSampler
+torch.cuda.set_device(5)
 import random
 import numpy as np
 import os
-device = torch.device('cuda:8')
+device = torch.device('cuda:5')
 def seed_everything(seed=0):
     random.seed(seed)
     np.random.seed(seed)
@@ -85,6 +93,7 @@ processor = ACE2005CASEEProcessor(schema_path='../../../cognlp/data/ee/ace2005ca
                                   )
 train_datable = processor.process_train(train_data)
 train_dataset = DataTableSet(train_datable, to_device=False)
+train_sampler = RandomSampler(train_dataset)
 
 dev_datable = processor.process_dev(dev_data)
 dev_dataset = DataTableSet(dev_datable, to_device=False)
@@ -93,6 +102,8 @@ test_datable = processor.process_test(test_data)
 test_dataset = DataTableSet(test_datable, to_device=False)
 
 model =CasEE(config=config,
+             trigger_max_span=processor.get_trigger_max_span_len(),
+             argument_max_span=processor.get_argument_max_span_len(),
              trigger_vocabulary=processor.get_trigger_vocabulary(),
              argument_vocabulary=processor.get_argument_vocabulary(),
              type_num=len(processor.get_trigger_vocabulary()),
@@ -111,18 +122,18 @@ optimizer_grouped_parameters = [{'params': model.bert.parameters()}, {'params': 
 optimizer = AdamW(optimizer_grouped_parameters, lr= 2e-5, correct_bias=False)
 # optimizer =optim.Adam(model.parameters(), lr=0.00005)
 metric = CASEEMetric(test_path='../../../cognlp/data/ee/ace2005casee/data/old_add_id_test.json')
-# scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=2264.3,
-#                                             num_training_steps=22643)
+scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=500,num_training_steps=15000)
 
 trainer = Trainer(model,
                   train_dataset,
                   dev_data=test_dataset,
-                  n_epochs=2000,
+                  n_epochs=30,
+                  train_sampler=train_sampler,
                   batch_size=8,
                   dev_batch_size=1,
                   loss=loss,
                   optimizer=optimizer,
-                  scheduler=None,
+                  scheduler=scheduler,
                   metrics=metric,
                   drop_last=False,
                   gradient_accumulation_steps=1,
@@ -130,13 +141,13 @@ trainer = Trainer(model,
                   save_path='../../../cognlp/data/ee/ace2005casee/model',
                   save_file=None,
                   print_every=None,
-                  scheduler_steps=None,
-                  validate_steps=1000,
+                  scheduler_steps=1,
+                  validate_steps=400,
                   save_steps=None,
                   grad_norm=1.0,
                   use_tqdm=True,
                   device=device,
-                  device_ids=[8],
+                  device_ids=[5],
                   collate_fn=train_dataset.to_dict,
                   dev_collate_fn=test_dataset.to_dict,
                   callbacks=None,

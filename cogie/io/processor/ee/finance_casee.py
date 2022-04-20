@@ -42,20 +42,20 @@ class FINANCECASEEProcessor:
             e = self.argument_type_list[i] + '_e'
             self.args_e_id[e] = i
 
-        if os.path.exists(self.trigger_path):
-            self.trigger_vocabulary = Vocabulary.load(self.trigger_path)
-        else:
-            self.trigger_vocabulary = Vocabulary(padding=None, unknown=None)
-            self.trigger_vocabulary.add_word_lst(self.trigger_type_list)
-            self.trigger_vocabulary.build_vocab()
-            self.trigger_vocabulary.save(self.trigger_path)
-        if os.path.exists(self.argument_path):
-            self.argument_vocabulary = Vocabulary.load(self.argument_path)
-        else:
-            self.argument_vocabulary = Vocabulary(padding=None, unknown=None)
-            self.argument_vocabulary.add_word_lst(self.argument_type_list)
-            self.argument_vocabulary.build_vocab()
-            self.argument_vocabulary.save(self.argument_path)
+        # if os.path.exists(self.trigger_path):
+        #     self.trigger_vocabulary = Vocabulary.load(self.trigger_path)
+        # else:
+        self.trigger_vocabulary = Vocabulary(padding=None, unknown=None)
+        self.trigger_vocabulary.add_word_lst(['质押', '股份股权转让', '投资', '减持', '起诉', '收购', '判决', '签署合同', '担保', '中标'])
+        self.trigger_vocabulary.build_vocab()
+        self.trigger_vocabulary.save(self.trigger_path)
+        # if os.path.exists(self.argument_path):
+        #     self.argument_vocabulary = Vocabulary.load(self.argument_path)
+        # else:
+        self.argument_vocabulary = Vocabulary(padding=None, unknown=None)
+        self.argument_vocabulary.add_word_lst(['collateral', 'obj-per', 'sub-per', 'sub-org', 'share-per', 'title', 'way', 'money', 'obj-org', 'number', 'amount', 'proportion', 'target-company', 'date', 'sub', 'share-org', 'obj', 'institution'])
+        self.argument_vocabulary.build_vocab()
+        self.argument_vocabulary.save(self.argument_path)
 
         self.schema_id = {}
         for trigger_type, argument_type_list in self.schema_str.items():
@@ -171,7 +171,7 @@ class FINANCECASEEProcessor:
                 datable("a_s", args_s)
                 datable("a_e", args_e)
                 datable("a_m", arg_mask)
-                datable("content", content)
+                datable("content", content )
 
         return datable
 
@@ -251,7 +251,7 @@ class FINANCECASEEProcessor:
                 datable("triggers_truth", triggers_truth)
                 datable("args_truth", args_truth)
                 datable("head_indexes", head_indexes)
-                datable("content", content)
+                datable("content", content )
         return datable
 
 
@@ -329,7 +329,7 @@ class FINANCECASEEProcessor:
                 datable("triggers_truth", triggers_truth)
                 datable("args_truth", args_truth)
                 datable("head_indexes", head_indexes)
-                datable("content", content)
+                datable("content", content )
         return datable
 
     def get_trigger_vocabulary(self):

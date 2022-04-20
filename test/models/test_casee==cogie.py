@@ -1,18 +1,25 @@
+import sys
+
+sys.path.append('/data/mentianyi/code/CogIE')
+sys.path.append('/data/mentianyi/cognlp')
+
 from cogie import *
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from cogie.core.trainer import Trainer
-from cogie.io.loader.ee.ace2005_casee import ACE2005CASEELoader
-from cogie.io.processor.ee.ace2005_casee import ACE2005CASEEProcessor
+from cogie.io.loader.ee.finance_casee import FINANCECASEELoader
+from cogie.io.processor.ee.finance_casee import FINANCECASEEProcessor
 import argparse
 from transformers import get_linear_schedule_with_warmup
 from transformers import AdamW
-torch.cuda.set_device(6)
+torch.cuda.set_device(8)
 import random
+from torch.utils.data import RandomSampler
 import numpy as np
 import os
-device = torch.device('cuda:6')
+from pathlib import Path
+device = torch.device('cuda:8')
 def seed_everything(seed=0):
     random.seed(seed)
     np.random.seed(seed)
@@ -27,7 +34,7 @@ def parse_args():
 
     # Path options.
     parser.add_argument("--data_path", type=str, default='datasets/FewFC', help="Path of the dataset.")
-    parser.add_argument("--test_path", type=str, default='../../../cognlp/data/ee/ace2005/data/test.json', help="Path of the testset.")
+    parser.add_argument("--test_path", type=str, default='../../../cognlp/data/ee/finance/data/test.json', help="Path of the testset.")
 
     parser.add_argument("--output_result_path", type=str, default='models_save/results.json')
     parser.add_argument("--output_model_path", default="./models_save/model.bin", type=str, help="Path of the output model.")
@@ -54,9 +61,10 @@ def parse_args():
     parser.add_argument("--decoder_dropout", type=float, default=0.3, help="Dropout on decoders")
 
     # Model options.
-    parser.add_argument("--w1", type=float, default=2.0)
+    parser.add_argument("--w1", type=float, default=1.0)
     parser.add_argument("--w2", type=float, default=1.0)
-    parser.add_argument("--w3", type=float, default=0.5)
+    parser.add_argument("--w3", type=float, default=1.0)
+    # parser.add_argument("--w3", type=float, default=0.1)
     parser.add_argument("--pow_0", type=int, default=1)
     parser.add_argument("--pow_1", type=int, default=1)
     parser.add_argument("--pow_2", type=int, default=1)
@@ -76,15 +84,16 @@ def parse_args():
     return args
 config = parse_args()
 
-loader = ACE2005CASEELoader()
-train_data, dev_data, test_data = loader.load_all('../../../cognlp/data/ee/ace2005casee/data')
-processor = ACE2005CASEEProcessor(schema_path='../../../cognlp/data/ee/ace2005casee/data/schema.json',
-                                  trigger_path='../../../cognlp/data/ee/ace2005casee/data/trigger_vocabulary.txt',
-                                  argument_path='../../../cognlp/data/ee/ace2005casee/data/argument_vocabulary.txt',
+loader = FINANCECASEELoader()
+train_data, dev_data, test_data = loader.load_all('../../../cognlp/data/ee/finance/data')
+processor = FINANCECASEEProcessor(schema_path='../../../cognlp/data/ee/finance/data/ty_args.json',
+                                  trigger_path='../../../cognlp/data/ee/finance/data/trigger_vocabulary.txt',
+                                  argument_path='../../../cognlp/data/ee/finance/data/argument_vocabulary.txt',
                                   max_length=400
                                   )
 train_datable = processor.process_train(train_data)
 train_dataset = DataTableSet(train_datable, to_device=False)
+train_sampler = RandomSampler(train_dataset)
 
 dev_datable = processor.process_dev(dev_data)
 dev_dataset = DataTableSet(dev_datable, to_device=False)
@@ -99,32 +108,45 @@ model =CasEE(config=config,
              argument_vocabulary=processor.get_argument_vocabulary(),
              type_num=len(processor.get_trigger_vocabulary()),
              args_num=len(processor.get_argument_vocabulary()),
-             bert_model='bert-base-cased', pos_emb_size=64,
+             bert_model='bert-base-chinese', pos_emb_size=64,
              device=device,
              schema_id=processor.schema_id)
+def load_model(model, model_path):
+    if isinstance(model_path, Path):
+        model_path = str(model_path)
+    states = torch.load(model_path)
+    # state = states['state_dict']
+    if isinstance(model, nn.DataParallel):
+        model.module.load_state_dict(states)
+    else:
+        model.load_state_dict(states)
+    return model
+if os.path.isfile( "/data/mentianyi/code/CasEE/casee_checkpoint_model_15_epoch.pkl"):
+    print("success_load!!!!!")
+    model = load_model(model, "/data/mentianyi/code/CasEE/casee_checkpoint_model_15_epoch.pkl")
 loss = {"loss_0":nn.BCELoss(reduction='none'),
         "loss_1":nn.BCELoss(reduction='none'),
         "loss_2":nn.BCELoss(reduction='none')}
 
 bert_params = list(map(id, model.bert.parameters()))
 other_params = filter(lambda p: id(p) not in bert_params, model.parameters())
-# optimizer_grouped_parameters = [{'params': model.bert.parameters()}, {'params': other_params, 'lr':1e-4}]
-optimizer_grouped_parameters = [{'params': model.bert.parameters()}, {'params': other_params, 'lr':3e-5}]
+optimizer_grouped_parameters = [{'params': model.bert.parameters()}, {'params': other_params, 'lr':1e-4}]
+# optimizer_grouped_parameters = [{'params': model.bert.parameters()}, {'params': other_params, 'lr':3e-5}]
 optimizer = AdamW(optimizer_grouped_parameters, lr= 2e-5, correct_bias=False)
 # optimizer =optim.Adam(model.parameters(), lr=0.00005)
-metric = CASEEMetric(test_path='../../../cognlp/data/ee/ace2005casee/data/old_add_id_test.json')
-# scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=2264.3,
-#                                             num_training_steps=22643)
+metric = CASEEMetric(test_path='../../../cognlp/data/ee/finance/data/old_test.json')
+scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=2000,num_training_steps=20000)
 
 trainer = Trainer(model,
                   train_dataset,
                   dev_data=test_dataset,
-                  n_epochs=2000,
+                  n_epochs=20,
+                  train_sampler=train_sampler,
                   batch_size=8,
                   dev_batch_size=1,
                   loss=loss,
                   optimizer=optimizer,
-                  scheduler=None,
+                  scheduler=scheduler,
                   metrics=metric,
                   drop_last=False,
                   gradient_accumulation_steps=1,
@@ -132,13 +154,13 @@ trainer = Trainer(model,
                   save_path='../../../cognlp/data/ee/ace2005casee/model',
                   save_file=None,
                   print_every=None,
-                  scheduler_steps=None,
-                  validate_steps=1000,
+                  scheduler_steps=1,
+                  validate_steps=400,
                   save_steps=None,
                   grad_norm=1.0,
                   use_tqdm=True,
                   device=device,
-                  device_ids=[6],
+                  device_ids=[8],
                   collate_fn=train_dataset.to_dict,
                   dev_collate_fn=test_dataset.to_dict,
                   callbacks=None,

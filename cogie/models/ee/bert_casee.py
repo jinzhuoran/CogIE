@@ -304,48 +304,48 @@ class CasEE(BaseModule):
 
 
 
-        event_flag=type_id!=-1
-        event_num=sum(event_flag).item()
-        tokens=tokens[event_flag]
-        mask=mask[event_flag]
-        head_indexes=head_indexes[event_flag]
-        type_id=type_id[event_flag]
-        type_vec=type_vec[event_flag]
-        trigger_s_vec=trigger_s_vec[event_flag]
-        trigger_e_vec=trigger_e_vec[event_flag]
-        relative_pos=relative_pos[event_flag]
-        trigger_mask=trigger_mask[event_flag]
-        args_s_vec=args_s_vec[event_flag]
-        args_e_vec=args_e_vec[event_flag]
-        args_mask=args_mask[event_flag]
-        output_emb=output_emb[event_flag]
-        trigger_loss=0
-        args_loss=0
-        if event_num>0:
+        # event_flag=type_id!=-1
+        # event_num=sum(event_flag).item()
+        # tokens=tokens[event_flag]
+        # mask=mask[event_flag]
+        # head_indexes=head_indexes[event_flag]
+        # type_id=type_id[event_flag]
+        # type_vec=type_vec[event_flag]
+        # trigger_s_vec=trigger_s_vec[event_flag]
+        # trigger_e_vec=trigger_e_vec[event_flag]
+        # relative_pos=relative_pos[event_flag]
+        # trigger_mask=trigger_mask[event_flag]
+        # args_s_vec=args_s_vec[event_flag]
+        # args_e_vec=args_e_vec[event_flag]
+        # args_mask=args_mask[event_flag]
+        # output_emb=output_emb[event_flag]
+        # trigger_loss=0
+        # args_loss=0
+        # if event_num>0:
 
-            type_rep = type_emb[type_id, :]
-            p_s, p_e, text_rep_type = self.trigger_rec(type_rep, output_emb, mask)
-            p_s = p_s.pow(self.config.pow_1)
-            p_e = p_e.pow(self.config.pow_1)
-            p_s = p_s.squeeze(-1)
-            p_e = p_e.squeeze(-1)
-            trigger_loss_s = self.loss_1(p_s, trigger_s_vec)
-            trigger_loss_e = self.loss_1(p_e, trigger_e_vec)
-            mask_t = mask.float()  # [b, t]
-            trigger_loss_s = torch.sum(trigger_loss_s.mul(mask_t))
-            trigger_loss_e = torch.sum(trigger_loss_e.mul(mask_t))
+        type_rep = type_emb[type_id, :]
+        p_s, p_e, text_rep_type = self.trigger_rec(type_rep, output_emb, mask)
+        p_s = p_s.pow(self.config.pow_1)
+        p_e = p_e.pow(self.config.pow_1)
+        p_s = p_s.squeeze(-1)
+        p_e = p_e.squeeze(-1)
+        trigger_loss_s = self.loss_1(p_s, trigger_s_vec)
+        trigger_loss_e = self.loss_1(p_e, trigger_e_vec)
+        mask_t = mask.float()  # [b, t]
+        trigger_loss_s = torch.sum(trigger_loss_s.mul(mask_t))
+        trigger_loss_e = torch.sum(trigger_loss_e.mul(mask_t))
 
-            p_s, p_e, type_soft_constrain = self.args_rec(text_rep_type, relative_pos, trigger_mask, mask, type_rep)
-            p_s = p_s.pow(self.config.pow_2)
-            p_e = p_e.pow(self.config.pow_2)
-            args_loss_s = self.loss_2(p_s, args_s_vec.transpose(1, 2))  # [b, t, l]
-            args_loss_e = self.loss_2(p_e, args_e_vec.transpose(1, 2))
-            mask_a = mask.unsqueeze(-1).expand_as(args_loss_s).float()  # [b, t, l]
-            args_loss_s = torch.sum(args_loss_s.mul(mask_a))
-            args_loss_e = torch.sum(args_loss_e.mul(mask_a))
+        p_s, p_e, type_soft_constrain = self.args_rec(text_rep_type, relative_pos, trigger_mask, mask, type_rep)
+        p_s = p_s.pow(self.config.pow_2)
+        p_e = p_e.pow(self.config.pow_2)
+        args_loss_s = self.loss_2(p_s, args_s_vec.transpose(1, 2))  # [b, t, l]
+        args_loss_e = self.loss_2(p_e, args_e_vec.transpose(1, 2))
+        mask_a = mask.unsqueeze(-1).expand_as(args_loss_s).float()  # [b, t, l]
+        args_loss_s = torch.sum(args_loss_s.mul(mask_a))
+        args_loss_e = torch.sum(args_loss_e.mul(mask_a))
 
-            trigger_loss = trigger_loss_s + trigger_loss_e
-            args_loss = args_loss_s + args_loss_e
+        trigger_loss = trigger_loss_s + trigger_loss_e
+        args_loss = args_loss_s + args_loss_e
 
         type_loss = self.config.w1 * type_loss
         trigger_loss = self.config.w2 * trigger_loss
@@ -368,10 +368,10 @@ class CasEE(BaseModule):
             output_hidden_states=None,
         )
         output_emb = outputs[0]
-        batch_size = tokens.shape[0]
-        for i in range(batch_size):
-            output_emb[i] = torch.index_select(output_emb[i], 0, head_indexes[i])
-            mask[i] = torch.index_select(mask[i], 0, head_indexes[i])
+        # batch_size = tokens.shape[0]
+        # for i in range(batch_size):
+        #     output_emb[i] = torch.index_select(output_emb[i], 0, head_indexes[i])
+        #     mask[i] = torch.index_select(mask[i], 0, head_indexes[i])
 
         return output_emb,mask
 
@@ -450,30 +450,27 @@ class CasEE(BaseModule):
             type_pred, type_truth, trigger_pred_tuples, trigger_truth_tuples, args_pred_tuples, args_truth_tuples = self.predict_one(
                 self, self.config, typ_truth, token,  mask, head_indexes,r_p, t_m, tri_truth, args_truth, self.schema_id, typ_oracle,
                 tri_oracle)
-            result=self.evaluate_without_oracle(self.config,content,idx,self.config.seq_length, self.trigger_vocabulary.idx2word, self.argument_vocabulary.idx2word, self.schema_id,token,mask,head_indexes)
+            metrics.evaluate(idx, type_pred, type_truth, trigger_pred_tuples, trigger_truth_tuples, args_pred_tuples,
+                             args_truth_tuples)
+            result=self.evaluate_without_oracle(content,idx,self.config.seq_length, self.trigger_vocabulary.idx2word, self.argument_vocabulary.idx2word, self.schema_id,token,mask,head_indexes)
             metrics.results.append(result)
-            metrics.evaluate(idx,type_pred,type_truth,trigger_pred_tuples,trigger_truth_tuples,args_pred_tuples,args_truth_tuples)
+            # metrics.evaluate(idx,type_pred,type_truth,trigger_pred_tuples,trigger_truth_tuples,args_pred_tuples,args_truth_tuples)
 
-    def evaluate_without_oracle(self, config,content,idx, seq_len, id_type, id_args, ty_args_id,token,mask,head_indexes):
+    def evaluate_without_oracle(self, content,idx, seq_len, id_type, id_args, ty_args_id,token,mask,head_indexes):
         idx = idx[0]
-        result = self.extract_all_items_without_oracle(self.device, idx, content, token, mask, head_indexes , seq_len,
-                                                  config.threshold_0, config.threshold_1, config.threshold_2,
-                                                  config.threshold_3, config.threshold_4, id_type, id_args,
-                                                  ty_args_id)
+        result = self.extract_all_items_without_oracle(self.device, idx, content, token, mask, seq_len,
+                                                       self.config.threshold_0,
+                                         self.config.threshold_1, self.config.threshold_2, self.config.threshold_3, self.config.threshold_4, id_type,
+                                         id_args, ty_args_id,head_indexes)
         return result
 
-
-    def extract_all_items_without_oracle(self, device, idx, content: str, token,  mask, head_indexes,seq_len, threshold_0,
+    def extract_all_items_without_oracle(self,device, idx, content: str, token,  mask, seq_len, threshold_0,
                                          threshold_1, threshold_2, threshold_3, threshold_4, id_type: dict,
-                                         id_args: dict, ty_args_id: dict):
+                                         id_args: dict, ty_args_id: dict,head_indexes):
         assert token.size(0) == 1
         content = content[0]
         result = {'id': idx, 'content': content}
-        text_emb ,mask= self.plm(token, mask,head_indexes)
-        batch_size = token.shape[0]
-        # for i in range(batch_size):
-        #     text_emb [i] = torch.index_select(text_emb [i], 0, head_indexes[i])
-        #     mask[i] = torch.index_select(mask[i], 0, head_indexes[i])
+        text_emb,mask = self.plm(token,  mask,head_indexes)
 
         args_id = {id_args[k]: k for k in id_args}
         args_len_dict = {args_id[k]: self.argument_max_span[k] for k in self.argument_max_span}
@@ -516,7 +513,7 @@ class CasEE(BaseModule):
                 pred_event_one = {'type': type_name}
                 pred_trigger = {'span': [int(span[0]) - 1, int(span[1]) + 1 - 1],
                                 'word': content[int(span[0]) - 1:int(span[1]) + 1 - 1]}  # remove <CLS> token
-                pred_event_one['triggers'] = pred_trigger#############################################################################
+                pred_event_one['trigger'] = pred_trigger
                 pred_args = {}
 
                 args_candidates = ty_args_id[type_pred_one]
