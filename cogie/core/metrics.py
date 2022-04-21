@@ -1185,10 +1185,9 @@ class FBetaMeasure(MetricBase):
         fscore[tp_sum == 0] = 0.0
 
         if self._average == "macro":
-            precision = precision[pred_sum != 0].mean()
-            recall = recall[true_sum != 0].mean()
-            # fscore = fscore.mean()
-            fscore = (1 + beta2) * precision * recall / (beta2 * precision + recall)
+            precision = precision.mean()
+            recall = recall.mean()
+            fscore = fscore.mean()
         elif self._average == "weighted":
             weights = true_sum
             weights_sum = true_sum.sum()  # type: ignore
@@ -1731,4 +1730,122 @@ class CASEEMetric(MetricBase):
             f1_c = 0
         return prec_c, recall_c, f1_c
 
+
+from typing import Dict, Generator, List, Optional, Tuple, Union
+
+class EntityTypingMetric(MetricBase):
+    def __init__(self, beta: float = 1.0, average: str = None, labels: List[int] = None,threshold: float = 0.5,) -> None:
+        average_options = {None, "micro", "macro", "weighted"}
+        self._beta = beta
+        self._average = average
+        self._labels = labels
+        self._threshold = threshold
+
+        self.gold_pred = None
+
+    def evaluate(self,
+                 predictions:torch.Tensor,
+                 gold_labels:torch.Tensor,
+                 mask: Optional[torch.BoolTensor] = None):
+        predictions, gold_labels, mask = self.detach_tensors(predictions, gold_labels, mask)
+        threshold_predictions = (predictions >= self._threshold).float()
+        if self.gold_pred is None:
+            self.gold_pred = []
+        pred = torch.nonzero(threshold_predictions)
+        label = torch.nonzero(gold_labels)
+        for i in range(predictions.shape[0]):
+            pred_idx = list(pred[pred[:,0] == i,1].cpu().numpy())
+            if not pred_idx: # if the pred_idx is empty
+                pred_idx = [torch.argmax(predictions).item()]
+            golden_idx = list(label[label[:,0] == i,1].cpu().numpy())
+            self.gold_pred.extend([(golden_idx,pred_idx)])
+
+    def get_metric(self, reset=True):
+        if self.gold_pred is None:
+            raise RuntimeError("You never call this metric before!")
+        else:
+            true_prediction = self.gold_pred
+
+        count, pred_count, avg_pred_count, p, r, f1 = EntityTypingMetric.micro(true_prediction)
+        _, _, _, ma_p, ma_r, ma_f1 = EntityTypingMetric.macro(true_prediction)
+        accuracy = sum([set(y) == set(yp) for y, yp in true_prediction]) * 1.0 \
+                   / len(true_prediction)
+        output_dict = {"mi_p":p,
+                       "mi_r":r,
+                       "mi_f1":f1,
+                       "ma_p":ma_p,
+                       "ma_r":ma_r,
+                       "ma_f1":ma_f1,
+                       "accuracy":accuracy}
+        if reset:
+            self.reset()
+
+        return output_dict
+
+
+    def reset(self):
+        self.gold_pred = None
+
+    @staticmethod
+    def et_f1(p: float, r: float) -> float:
+      if r == 0.:
+        return 0.
+      return 2 * p * r / float(p + r)
+
+    @staticmethod
+    def macro(
+      true_and_prediction: List[Tuple[List[str], List[str]]]
+    ) -> Tuple[int, int, int, float, float, float]:
+      """Computes macro precision, recall, and F1."""
+      num_examples = len(true_and_prediction)
+      p = 0.
+      r = 0.
+      pred_example_count = 0
+      pred_label_count = 0.
+      gold_label_count = 0.
+      for true_labels, predicted_labels in true_and_prediction:
+        if predicted_labels:
+          pred_example_count += 1
+          pred_label_count += len(predicted_labels)
+          per_p = len(set(predicted_labels).intersection(set(true_labels))) / \
+                  float(len(predicted_labels))
+          p += per_p
+        if len(true_labels):
+          gold_label_count += 1
+          per_r = len(set(predicted_labels).intersection(set(true_labels))) / \
+                  float(len(true_labels))
+          r += per_r
+      if pred_example_count == 0 or gold_label_count == 0:
+        return num_examples, 0, 0, 0., 0., 0.
+      precision = p / float(pred_example_count)
+      recall = r / gold_label_count
+      avg_elem_per_pred = pred_label_count / float(pred_example_count)
+      return num_examples, pred_example_count, avg_elem_per_pred, precision, \
+             recall, EntityTypingMetric.et_f1(precision, recall)
+
+    @staticmethod
+    def micro(
+      true_and_prediction: List[Tuple[List[str], List[str]]]
+    ) -> Tuple[int, int, int, float, float, float]:
+      """Computes micro precision, recall, and F1."""
+      num_examples = len(true_and_prediction)
+      num_predicted_labels = 0.
+      num_true_labels = 0.
+      num_correct_labels = 0.
+      pred_example_count = 0
+      for true_labels, predicted_labels in true_and_prediction:
+        if predicted_labels:
+          pred_example_count += 1
+        num_predicted_labels += len(predicted_labels)
+        num_true_labels += len(true_labels)
+        num_correct_labels += len(
+          set(predicted_labels).intersection(set(true_labels)))
+      if pred_example_count == 0 or num_predicted_labels == 0 \
+              or num_true_labels == 0:
+        return num_examples, 0, 0, 0., 0., 0.
+      precision = num_correct_labels / num_predicted_labels
+      recall = num_correct_labels / num_true_labels
+      avg_elem_per_pred = num_predicted_labels / float(pred_example_count)
+      return num_examples, pred_example_count, avg_elem_per_pred, precision, \
+             recall, EntityTypingMetric.et_f1(precision, recall)
 
