@@ -1185,9 +1185,10 @@ class FBetaMeasure(MetricBase):
         fscore[tp_sum == 0] = 0.0
 
         if self._average == "macro":
-            precision = precision.mean()
-            recall = recall.mean()
-            fscore = fscore.mean()
+            precision = precision[pred_sum != 0].mean()
+            recall = recall[true_sum != 0].mean()
+            # fscore = fscore.mean()
+            fscore = (1 + beta2) * precision * recall / (beta2 * precision + recall)
         elif self._average == "weighted":
             weights = true_sum
             weights_sum = true_sum.sum()  # type: ignore
