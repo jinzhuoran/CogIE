@@ -311,6 +311,7 @@ class TransformerBoxModel(TransformerVecModel):
         return loss
 
     def evaluate(self,batch,metrics):
+        self.classifier.use_gumbel_baysian = False
         batch = [data.cuda() for data in batch]
         input_ids, token_type_ids, attention_mask, target = batch
         loss, output_logits = self.forward(
@@ -320,6 +321,8 @@ class TransformerBoxModel(TransformerVecModel):
         # target = target.cpu().clone().numpy()
         # output = torch.where(output_logits >= 0.5,1,0)
         metrics.evaluate(output_logits, target)
+        self.classifier.use_gumbel_baysian = True
+
 
 
 SIGMOID = nn.Sigmoid()
