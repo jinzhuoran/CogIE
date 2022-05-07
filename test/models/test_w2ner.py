@@ -26,14 +26,15 @@ seed_everything(init_seed)
 device = torch.device('cuda')
 loader = Conll2003NERLoader()
 train_data, dev_data, test_data = loader.load_all('../../../cognlp/data/ner/conll2003/data')
-vocabulary = cogie.Vocabulary.load('../../../cognlp/data/ner/conll2003/data/vocabulary.txt')
+
 # vocabulary.idx2word = {0: '<pad>', 1: '<suc>', 2: 'b-org', 3: 'b-misc', 4: 'b-per', 5: 'i-per', 6: 'b-loc'}
 # vocabulary.word2idx = {'<pad>': 0, '<suc>': 1, 'b-org': 2, 'b-misc': 3, 'b-per': 4, 'i-per': 5, 'b-loc': 6}
 # vocabulary.idx2word = {0: '<pad>', 1: '<suc>', 2: 'b-org', 3: 'b-misc', 4: 'b-per', 5: 'i-per', 6: 'b-loc', 7: 'i-org', 8: 'i-misc', 9: 'i-loc'}
 # vocabulary.word2idx = {'<pad>': 0, '<suc>': 1, 'b-org': 2, 'b-misc': 3, 'b-per': 4, 'i-per': 5, 'b-loc': 6, 'i-org': 7, 'i-misc': 8, 'i-loc': 9}
 
-processor = Conll2003W2NERProcessor(label_list=loader.get_labels(), path='../../../cognlp/data/ner/conll2003/data/',
+processor = Conll2003W2NERProcessor(label_list=loader.get_labels(),path='../../../cognlp/data/ner/conll2003/data/',
                                     bert_model='bert-large-cased', max_length=256)
+vocabulary = cogie.Vocabulary.load('../../../cognlp/data/ner/conll2003/data/vocabulary.txt')
 train_datable = processor.process(train_data)
 train_dataset = cogie.DataTableSet(train_datable)
 train_sampler = RandomSampler(train_dataset)
@@ -87,7 +88,7 @@ scheduler = transformers.get_linear_schedule_with_warmup(optimizer,
 trainer = cogie.Trainer(model,
                         train_dataset,
                         dev_data=test_dataset,
-                        n_epochs=10,
+                        n_epochs=3,
                         batch_size=config.batch_size,
                         loss=loss,
                         optimizer=optimizer,
@@ -102,7 +103,7 @@ trainer = cogie.Trainer(model,
                         save_file=None,
                         print_every=None,
                         scheduler_steps=1,
-                        validate_steps=500,
+                        validate_steps=None,
                         save_steps=None,
                         grad_norm=1,  # 梯度裁减
                         use_tqdm=True,

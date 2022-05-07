@@ -44,7 +44,9 @@ class Conll2003NERLoader(Loader):
         return train_set, dev_set, test_set
 
     def get_labels(self):
-        return list(self.label_set)
+        labels = list(self.label_set)
+        labels.sort()
+        return labels
 
 
 class TrexNerLoader:

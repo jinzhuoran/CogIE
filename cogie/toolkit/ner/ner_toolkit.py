@@ -4,10 +4,12 @@
 @Desc:
 """
 from cogie import *
+from cogie.models.ner.w2ner import W2NER
 from ..base_toolkit import BaseToolkit
 import threading
 import torch
-
+import json
+from argparse import Namespace
 
 class NerToolkit(BaseToolkit):
 
@@ -24,7 +26,7 @@ class NerToolkit(BaseToolkit):
         self.corpus = corpus
         download_model(config[task][language][corpus])
         path = config[task][language][corpus]['path']
-        model = config[task][language][corpus]['data']['models']
+        model = config[task][language][corpus]['data']['model']
         vocabulary = config[task][language][corpus]['data']['vocabulary']
         bert_model = config[task][language][corpus]['bert_model']
         device = torch.device(config['device'])
@@ -37,6 +39,12 @@ class NerToolkit(BaseToolkit):
                 self.model = Bert4Ner(len(self.vocabulary))
             elif self.corpus == 'ace2005':
                 self.model = BertSoftmax(self.vocabulary)
+            elif self.corpus == 'conll2003':
+                model_config = config[task][language][corpus]['data']['model_config']
+                with open(absolute_path(path,model_config),"r") as f:
+                    self.model_config = Namespace(**json.load(f))
+                    self.model_config.label_num = len(self.vocabulary)
+                self.model = W2NER(self.model_config)
         elif self.language == 'chinese':
             if self.corpus == 'msra':
                 self.model = Bert4CNNer(self.vocabulary)
@@ -106,6 +114,39 @@ class NerToolkit(BaseToolkit):
                     tag.append(self.vocabulary.to_word(prediction[i].item()))
                 spans = _bio_tag_to_spans(words, tag)
                 return spans
+
+            elif self.corpus == 'conll2003':
+                self.model.eval()
+                labels = ["O"] * len(words)
+                # import cogie.io.processor.ner.conll2003 as processor
+                # from cogie.io.processor.ner.trex_ner import TrexW2NERProcessor
+                from cogie.io.processor.ner.conll2003 import process_w2ner
+                bert_inputs, attention_masks, \
+                grid_labels, grid_mask2d, \
+                pieces2word, dist_inputs, \
+                sent_length, entity_text = \
+                    process_w2ner(list(words), labels, self.tokenizer, self.vocabulary, self.max_seq_length)
+
+                bert_inputs = torch.tensor([bert_inputs], dtype=torch.long, device=self.device)
+                attention_masks = torch.tensor([attention_masks], dtype=torch.long, device=self.device)
+                grid_labels = torch.tensor([grid_labels], dtype=torch.long, device=self.device)
+                grid_mask2d = torch.tensor([grid_mask2d], dtype=torch.long, device=self.device)
+                pieces2word = torch.tensor([pieces2word], dtype=torch.long, device=self.device)
+                dist_inputs = torch.tensor([dist_inputs], dtype=torch.long, device=self.device)
+                sent_length = torch.tensor([sent_length], dtype=torch.long, device=self.device)
+
+                outputs = self.model(bert_inputs=bert_inputs,
+                                    attention_masks=attention_masks,
+                                    grid_mask2d=grid_mask2d,
+                                    dist_inputs=dist_inputs,
+                                    pieces2word=pieces2word,
+                                    sent_length=sent_length)
+                outputs = torch.argmax(outputs,-1)
+                ent_c, ent_p, ent_r, decode_entities = w2ner_decode(outputs.cpu().numpy(), entity_text,
+                                                                    sent_length.cpu().numpy())
+
+                return [ent_c, ent_p, ent_r, decode_entities]
+
         elif self.language == 'chinese':
             if self.corpus == 'msra':
                 tokens = []
@@ -156,3 +197,65 @@ def _bio_tag_to_spans(words, tags, ignore_labels=None):
         prev_bio_tag = bio_tag
     return [{"mention": words[span[1][0]:span[1][1] + 1], "start": span[1][0], "end": span[1][1] + 1, "type": span[0]} for span in spans
             if span[0] not in ignore_labels]
+
+def convert_index_to_text(index, type):
+    text = "-".join([str(i) for i in index])
+    text = text + "-#-{}".format(type)
+    return text
+
+
+def convert_text_to_index(text):
+    index, type = text.split("-#-")
+    index = [int(x) for x in index.split("-")]
+    return index, int(type)
+
+def w2ner_decode(outputs, entities, length):
+    ent_r, ent_p, ent_c = 0, 0, 0
+    decode_entities = []
+    for index, (instance, ent_set, l) in enumerate(zip(outputs, entities, length)):
+        forward_dict = {}
+        head_dict = {}
+        ht_type_dict = {}
+        for i in range(l):
+            for j in range(i + 1, l):
+                if instance[i, j] == 1:
+                    if i not in forward_dict:
+                        forward_dict[i] = [j]
+                    else:
+                        forward_dict[i].append(j)
+        for i in range(l):
+            for j in range(i, l):
+                if instance[j, i] > 1:
+                    ht_type_dict[(i, j)] = instance[j, i]
+                    if i not in head_dict:
+                        head_dict[i] = {j}
+                    else:
+                        head_dict[i].add(j)
+
+        predicts = []
+
+        def find_entity(key, entity, tails):
+            entity.append(key)
+            if key not in forward_dict:
+                if key in tails:
+                    predicts.append(entity.copy())
+                entity.pop()
+                return
+            else:
+                if key in tails:
+                    predicts.append(entity.copy())
+            for k in forward_dict[key]:
+                find_entity(k, entity, tails)
+            entity.pop()
+
+        for head in head_dict:
+            find_entity(head, [], head_dict[head])
+
+        predicts = set([convert_index_to_text(x, ht_type_dict[(x[0], x[-1])]) for x in predicts])
+        decode_entities.append([convert_text_to_index(x) for x in predicts])
+        ent_r += len(ent_set)
+        ent_p += len(predicts)
+        for x in predicts:
+            if x in ent_set:
+                ent_c += 1
+    return ent_c, ent_p, ent_r, decode_entities

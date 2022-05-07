@@ -7,7 +7,8 @@ import os
 from cogie.utils import load_yaml
 
 ROOT_PATH = os.path.join(os.getenv('HOME'), '.cogie')
-ROOT_URL = 'http://159.226.21.226/cog_ie_api/'
+# ROOT_URL = 'http://159.226.21.226/cog_ie_api/'
+ROOT_URL = 'http://43.154.73.63:9000/cogie' # Tencent Server provided by zhuoran
 
 
 def absolute_path(file_path, file_name=None):

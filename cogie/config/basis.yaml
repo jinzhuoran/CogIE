@@ -36,6 +36,15 @@ ner:
         vocabulary: vocabulary.txt
       bert_model: hfl/chinese-roberta-wwm-ext
 
+    conll2003:
+      path: models/ner/conll2003/toolkit
+      data:
+        model: models.pt
+        vocabulary: vocabulary.txt
+        model_config: conll03.json
+      bert_model: bert-base-cased
+
+
 et:
   english:
     ontonotes:
