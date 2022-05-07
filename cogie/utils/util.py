@@ -195,7 +195,7 @@ def load_yaml(file_path):
     if not isinstance(file_path, Path):
         file_path = Path(file_path)
     with open(str(file_path), 'r') as f:
-        data = yaml.load(f)
+        data = yaml.load(f,Loader=yaml.FullLoader)
     return data
 
 
