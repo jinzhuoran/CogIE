@@ -8,9 +8,9 @@ import numpy as np
 from torch.nn.utils.rnn import pad_sequence
 
 class TrexW2NERProcessor(Processor):
-    def __init__(self, label_list=None, path=None, padding=None, unknown=None, bert_model='bert-base-cased',
+    def __init__(self, label_list=None, path=None, bert_model='bert-base-cased',
                  max_length=256):
-        super().__init__(label_list, path, bert_model=bert_model,unknown=unknown,
+        super().__init__(label_list, path, bert_model=bert_model,
                          max_length=max_length)
 
     def process(self, dataset):

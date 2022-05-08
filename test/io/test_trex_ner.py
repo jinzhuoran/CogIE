@@ -11,10 +11,10 @@ import transformers
 from cogie.models.ner.w2ner import W2NER
 
 device = torch.device('cuda')
-loader = TrexNerLoader()
+loader = TrexNerLoader(debug=False)
 train_data, dev_data, test_data  = loader.load_all('../../../cognlp/data/ner/trex/data/processed_data')
 
-processor = TrexW2NERProcessor(label_list=loader.get_labels(),path='../../../cognlp/data/ner/conll2003/data/',
+processor = TrexW2NERProcessor(label_list=loader.get_labels(),path='../../../cognlp/data/ner/trex/data/',
                                   bert_model='bert-large-cased',max_length=512)
 train_datable = processor.process(train_data)
 train_dataset = cogie.DataTableSet(train_datable)
@@ -68,7 +68,7 @@ scheduler = transformers.get_linear_schedule_with_warmup(optimizer,
 
 trainer = cogie.Trainer(model,
                         train_dataset,
-                        dev_data=test_dataset,
+                        dev_data=dev_dataset,
                         n_epochs=100,
                         batch_size=config.batch_size,
                         loss=loss,
@@ -76,28 +76,28 @@ trainer = cogie.Trainer(model,
                         scheduler=scheduler,
                         metrics=metric,
                         train_sampler=train_sampler,
-                        dev_sampler=test_sampler,
+                        dev_sampler=dev_sampler,
                         drop_last=False,
                         gradient_accumulation_steps=1,
                         num_workers=5,
-                        save_path="../../../cognlp/data/ner/conll2003/model",
+                        save_path="../../../cognlp/data/ner/trex/model",
                         save_file=None,
                         print_every=None,
                         scheduler_steps=1,
                         validate_steps=1000,
-                        save_steps=None,
+                        save_steps=1000,
                         grad_norm=1,# 梯度裁减
                         use_tqdm=True,
                         device=device,
                         device_ids=[0],
                         callbacks=None,
                         metric_key=None,
-                        writer_path='../../../cognlp/data/ner/conll2003/tensorboard',
+                        writer_path='../../../cognlp/data/ner/trex/tensorboard',
                         fp16=False,
                         fp16_opt_level='O1',
                         # checkpoint_path="./checkpoint-1",
-                        task='conll2003',
-                        logger_path='../../../cognlp/data/ner/conll2003/logger')
+                        task='trex',
+                        logger_path='../../../cognlp/data/ner/trex/logger')
 
 trainer.train()
 

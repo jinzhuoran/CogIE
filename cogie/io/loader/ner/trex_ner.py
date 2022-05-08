@@ -15,11 +15,15 @@ from tqdm import tqdm
 
 
 class TrexNerLoader(Loader):
-    def __init__(self):
+    def __init__(self,debug=False):
         super().__init__()
+        self.debug = debug
 
     def _load(self, path):
         datas = load_json(path)
+        datas = datas[0:int(len(datas)/20)]
+        if self.debug:
+            datas = datas[0:100]
         dataset = DataTable()
         for data in tqdm(datas):
             text = data['text']
@@ -61,10 +65,12 @@ class TrexNerLoader(Loader):
 
     def load_all(self, path):
         datasets = []
-        for f in os.listdir(path):
-            dataset = self._load(os.path.join(path, f))
-            datasets.append(dataset)
-        return datasets
+        label_list = ["null"]
+        self.label_set = set(label_list)
+        train_set = self._load(os.path.join(path, 'train.json'))
+        dev_set = self._load(os.path.join(path, 'dev.json'))
+        test_set = self._load(os.path.join(path, 'test.json'))
+        return [train_set,dev_set,test_set]
 
 
 def get_mention_position(text, sentence_boundary, entity_boundary):
