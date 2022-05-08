@@ -9,6 +9,8 @@
 - **Extensibility**.  We contribute not just user-friendly APIs, but an extensible programming framework. Our goal in designing CogIE is to provide a universal toolkit for all sorts of users.
 
 ## What's New?
+- May 8 2022: We have supported Fine-Grained Entity Typing according to [Box4Types](https://github.com/yasumasaonoe/Box4Types).
+- May 1 2022: We have supported Overlapping Chinese Event Extraction according to [CasEE](https://github.com/JiaweiSheng/CasEE).
 - Apr 2022: A series of updates are coming soon!
 - Apr 13 2022: We have supported Unified Named Entity Recognition according to [W2NER](https://github.com/ljynlp/W2NER).
 - Apr 1 2022: We have supported Joint Entity and Relation Extraction according to [PFN](https://github.com/Coopercoppers/PFN).
