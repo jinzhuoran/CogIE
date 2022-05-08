@@ -124,12 +124,12 @@ class NerToolkit(BaseToolkit):
                 bert_inputs, attention_masks, \
                 grid_labels, grid_mask2d, \
                 pieces2word, dist_inputs, \
-                sent_length, entity_text = \
+                sent_length, _ = \
                     process_w2ner(list(words), labels, self.tokenizer, self.vocabulary, self.max_seq_length)
 
                 bert_inputs = torch.tensor([bert_inputs], dtype=torch.long, device=self.device)
                 attention_masks = torch.tensor([attention_masks], dtype=torch.long, device=self.device)
-                grid_labels = torch.tensor([grid_labels], dtype=torch.long, device=self.device)
+                # grid_labels = torch.tensor([grid_labels], dtype=torch.long, device=self.device)
                 grid_mask2d = torch.tensor([grid_mask2d], dtype=torch.long, device=self.device)
                 pieces2word = torch.tensor([pieces2word], dtype=torch.long, device=self.device)
                 dist_inputs = torch.tensor([dist_inputs], dtype=torch.long, device=self.device)
@@ -142,10 +142,10 @@ class NerToolkit(BaseToolkit):
                                     pieces2word=pieces2word,
                                     sent_length=sent_length)
                 outputs = torch.argmax(outputs,-1)
-                ent_c, ent_p, ent_r, decode_entities = w2ner_decode(outputs.cpu().numpy(), entity_text,
+                decode_entities = w2ner_decode(outputs.cpu().numpy(),
                                                                     sent_length.cpu().numpy())
 
-                return [ent_c, ent_p, ent_r, decode_entities]
+                return decode_entities[0]
 
         elif self.language == 'chinese':
             if self.corpus == 'msra':
@@ -209,10 +209,9 @@ def convert_text_to_index(text):
     index = [int(x) for x in index.split("-")]
     return index, int(type)
 
-def w2ner_decode(outputs, entities, length):
-    ent_r, ent_p, ent_c = 0, 0, 0
+def w2ner_decode(outputs, length):
     decode_entities = []
-    for index, (instance, ent_set, l) in enumerate(zip(outputs, entities, length)):
+    for index, (instance, l) in enumerate(zip(outputs, length)):
         forward_dict = {}
         head_dict = {}
         ht_type_dict = {}
@@ -253,9 +252,5 @@ def w2ner_decode(outputs, entities, length):
 
         predicts = set([convert_index_to_text(x, ht_type_dict[(x[0], x[-1])]) for x in predicts])
         decode_entities.append([convert_text_to_index(x) for x in predicts])
-        ent_r += len(ent_set)
-        ent_p += len(predicts)
-        for x in predicts:
-            if x in ent_set:
-                ent_c += 1
-    return ent_c, ent_p, ent_r, decode_entities
+
+    return decode_entities
