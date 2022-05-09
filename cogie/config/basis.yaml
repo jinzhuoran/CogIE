@@ -20,7 +20,7 @@ ner:
       data:
         model: models.pt
         vocabulary: vocabulary.txt
-        model_config: conll03.json
+        model_config: trex.json
       bert_model: bert-base-cased
 
     ace2005:
