@@ -142,10 +142,18 @@ class NerToolkit(BaseToolkit):
                                     pieces2word=pieces2word,
                                     sent_length=sent_length)
                 outputs = torch.argmax(outputs,-1)
-                decode_entities = w2ner_decode(outputs.cpu().numpy(),
-                                                                    sent_length.cpu().numpy())
-
-                return decode_entities[0]
+                decode_entities = w2ner_decode(outputs.cpu().numpy(),sent_length.cpu().numpy())
+                single_decode_entities = sorted(decode_entities[0],key=lambda x:x[0][0])
+                tags = [self.vocabulary.idx2word[elem[1]] for elem in single_decode_entities]
+                spans = _bio_tag_to_spans(words,tags)
+                ner_result = []
+                for idx,entity_dict in enumerate(spans):
+                    context_left = words[:entity_dict["start"]]
+                    context_right = words[entity_dict["end"]:]
+                    ner_result.append({**entity_dict,
+                                       "context_left":context_left,
+                                       "context_right":context_right})
+                return ner_result
 
         elif self.language == 'chinese':
             if self.corpus == 'msra':

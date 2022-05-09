@@ -13,11 +13,6 @@ sentence = "Why has United States invaded Ukraine and what does Trump want Putin
 words = tokenize_toolkit.run(sentence)
 ner_result = ner_toolkit.run(words)
 
-result_dict = []
-for word_id_list,label in ner_result:
-    for word_id in word_id_list:
-        result_dict.append([word_id,ner_toolkit.vocabulary.idx2word[label]])
-result_dict.sort(key=lambda x:x[0])
-for word_id,label in result_dict:
-    print(words[word_id],label)
+for entity in ner_result:
+    print("Mention:",entity["mention"],"  Type:",entity["type"])
 
