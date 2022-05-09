@@ -18,8 +18,9 @@ ner:
     trex:
       path: models/ner/trex/toolkit
       data:
-        model: models.pkl
+        model: models.pt
         vocabulary: vocabulary.txt
+        model_config: conll03.json
       bert_model: bert-base-cased
 
     ace2005:

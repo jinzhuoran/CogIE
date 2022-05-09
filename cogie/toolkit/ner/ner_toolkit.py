@@ -36,7 +36,12 @@ class NerToolkit(BaseToolkit):
                          max_seq_length)
         if self.language == 'english':
             if self.corpus == 'trex':
-                self.model = Bert4Ner(len(self.vocabulary))
+                model_config = config[task][language][corpus]['data']['model_config']
+                with open(absolute_path(path,model_config),"r") as f:
+                    self.model_config = Namespace(**json.load(f))
+                    self.model_config.label_num = len(self.vocabulary)
+                self.model = W2NER(self.model_config)
+                # self.model = Bert4Ner(len(self.vocabulary))
             elif self.corpus == 'ace2005':
                 self.model = BertSoftmax(self.vocabulary)
             elif self.corpus == 'conll2003':
@@ -63,31 +68,48 @@ class NerToolkit(BaseToolkit):
         if self.language == 'english':
             if self.corpus == 'trex':
                 self.model.eval()
-                labels = ["O"] * len(words)
-                import cogie.io.processor.ner.conll2003 as processor
-                input_ids, attention_masks, segment_ids, valid_masks, label_ids, label_masks = \
-                    processor.process(list(words), labels, self.tokenizer, self.vocabulary, self.max_seq_length)
+                # provide an empty label which will not be used afterwards
+                labels = [{"index":[1] * len(words),"type":"null"}]
+                from cogie.io.processor.ner.trex_ner import process_w2ner
+                bert_inputs, attention_masks, \
+                grid_labels, grid_mask2d, \
+                pieces2word, dist_inputs, \
+                sent_length, _ = \
+                    process_w2ner(list(words), labels, self.tokenizer, self.vocabulary, self.max_seq_length)
 
-                input_ids = torch.tensor([input_ids], dtype=torch.long, device=self.device)
+                bert_inputs = torch.tensor([bert_inputs], dtype=torch.long, device=self.device)
                 attention_masks = torch.tensor([attention_masks], dtype=torch.long, device=self.device)
-                segment_ids = torch.tensor([segment_ids], dtype=torch.long, device=self.device)
-                valid_masks = torch.tensor([valid_masks], dtype=torch.long, device=self.device)
-                label_ids = torch.tensor([label_ids], dtype=torch.long, device=self.device)
-                label_masks = torch.tensor([label_masks], dtype=torch.long, device=self.device)
+                grid_mask2d = torch.tensor([grid_mask2d], dtype=torch.long, device=self.device)
+                pieces2word = torch.tensor([pieces2word], dtype=torch.long, device=self.device)
+                dist_inputs = torch.tensor([dist_inputs], dtype=torch.long, device=self.device)
+                sent_length = torch.tensor([sent_length], dtype=torch.long, device=self.device)
 
-                with torch.no_grad():
-                    prediction, valid_len = self.model.predict(
-                        [input_ids, attention_masks, segment_ids, valid_masks, label_ids, label_masks])
-                if len(prediction) == 0:
-                    return []
-                prediction = prediction[0]
-                valid_len = valid_len[0]
-                tag = []
-                for i in range(valid_len.item()):
-                    if i != 0 and i != valid_len.item() - 1:
-                        tag.append(self.vocabulary.to_word(prediction[i].item()))
-                spans = _bio_tag_to_spans(words, tag)
-                return spans
+                outputs = self.model(bert_inputs=bert_inputs,
+                                    attention_masks=attention_masks,
+                                    grid_mask2d=grid_mask2d,
+                                    dist_inputs=dist_inputs,
+                                    pieces2word=pieces2word,
+                                    sent_length=sent_length)
+                outputs = torch.argmax(outputs,-1)
+                decode_entities = w2ner_decode(outputs.cpu().numpy(),sent_length.cpu().numpy())
+                single_decode_entities = sorted(decode_entities[0],key=lambda x:x[0][0])
+                ner_result = []
+                for idx,entity_tuple in enumerate(single_decode_entities):
+                    mention = " ".join([words[i] for i in entity_tuple[0]])
+                    start = entity_tuple[0][0]
+                    end = entity_tuple[0][-1]+1
+                    label = "unkonwn"
+                    context_left = words[:start]
+                    context_right = words[end:]
+                    ner_result.append({"mention":mention,
+                                       "start":start,
+                                       "end":end,
+                                       "type":label,
+                                       "context_left":context_left,
+                                       "context_right":context_right})
+
+                return ner_result
+
             elif self.corpus == 'ace2005':
                 self.model.eval()
                 labels = ["O"] * len(words)
