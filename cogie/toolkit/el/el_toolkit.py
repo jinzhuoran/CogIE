@@ -15,21 +15,73 @@ from torch.utils.data import DataLoader, TensorDataset
 import torch
 import numpy as np
 import sys
+from cogie.models.el.biencoder import BiEncoderRanker
+from cogie.models.el.crossencoder import CrossEncoderRanker
+from cogie.models.el.blink import DenseHNSWFlatIndexer
+from cogie.utils.util import el_load_candidates
+from torch.utils.data import DataLoader, SequentialSampler, TensorDataset
+import logging
 
 
 class ElToolkit(BaseToolkit):
-
     def __init__(self, task='el', language='english', corpus=None):
-        super().__init__()
+        config = load_configuration()
+        if language == 'english':
+            if corpus is None:
+                corpus = "wiki"
         self.task = task
         self.language = language
         self.corpus = corpus
-        config = load_configuration()
-        download_model(config[task]['cognet'])
-        path = config['el']['cognet']['path']
-        file = config['el']['cognet']['data']['file']
-        self.wikidata2wikipedia = load_json(absolute_path(path, file))
-        self.cognet = CognetServer()
+        download_model(config[task][language][corpus])
+        device = torch.device(config['device'])
+        device_ids = config['device_id']
+        max_seq_length = config['max_seq_length']
+        super().__init__(device=device,device_ids=device_ids,max_seq_length=max_seq_length)
+        if self.language == 'english':
+            if self.corpus == 'wiki':
+                path = config[task][language][corpus]['path']
+                for key in config[task][language][corpus]['data']:
+                    config[task][language][corpus]['data'][key] = absolute_path(path,config[task][language][corpus]['data'][key])
+                biencoder_config = config[task][language][corpus]['data']['biencoder_config']
+                crossencoder_config = config[task][language][corpus]['data']['crossencoder_config']
+                self.biencoder_params = load_json(biencoder_config)
+                self.crossencoder_params = load_json(crossencoder_config)
+                self.biencoder_params["path_to_model"] = config[task][language][corpus]['data']['biencoder_model']
+                self.crossencoder_params["path_to_model"] = config[task][language][corpus]['data']['crossencoder_model']
+                self.biencoder = BiEncoderRanker(self.biencoder_params)
+                self.crossencoder = CrossEncoderRanker(self.crossencoder_params)
+                self.faiss_indexer = DenseHNSWFlatIndexer(1)
+                self.faiss_indexer.deserialize_from(config[task][language][corpus]['data']['index_path'])
+                self.convert_dict = {}
+                title2id,id2title,id2text,wikipedia_id2local_id = el_load_candidates(config[task][language][corpus]['data']['entity_catalogue'])
+                id2url = {
+                    v: "https://en.wikipedia.org/wiki?curid=%s" % k
+                    for k, v in wikipedia_id2local_id.items()
+                }
+                self.convert_dict = {
+                    "title2id":title2id,
+                    "id2title":id2title,
+                    "id2text":id2text,
+                    "wikipedia_id2local_id":wikipedia_id2local_id,
+                    "id2url":id2url,
+                }
+
+
+
+
+
+
+    # def __init__(self, task='el', language='english', corpus=None):
+    #     super().__init__()
+    #     self.task = task
+    #     self.language = language
+    #     self.corpus = corpus
+    #     config = load_configuration()
+    #     download_model(config[task]['cognet'])
+    #     path = config['el']['cognet']['path']
+    #     file = config['el']['cognet']['data']['file']
+    #     self.wikidata2wikipedia = load_json(absolute_path(path, file))
+    #     self.cognet = CognetServer()
         # self.id2url, self.et_ner_model, self.et_models = predictor.get_et_predictor()
 
     _instance_lock = threading.Lock()
@@ -41,8 +93,69 @@ class ElToolkit(BaseToolkit):
                     ElToolkit._instance = object.__new__(cls)
         return ElToolkit._instance
 
-    def run(self, sentence):
-        url = "https://en.wikipedia.org/wiki/"
+    def run(self,ner_result):
+        if self.language == 'english':
+            if self.corpus == 'wiki':
+                samples = []
+                for mention in ner_result:
+                    record = {}
+                    record["label"] = 'unkonwn'
+                    record["label_id"] = -1
+                    for key in ["mention","context_left","context_right"]:
+                        if key not in mention.keys():
+                            raise ValueError("Key {} is not available in ner result!".format(key))
+                        record[key] = " ".join(mention[key]).lower()
+                    samples.append(record)
+                _,biencoder_tensor_data = process_mention_data(samples,
+                                                               self.biencoder.tokenizer,
+                                                               self.biencoder_params["max_context_length"],
+                                                               self.biencoder_params["max_cand_length"],
+                                                               silent=True,
+                                                               logger=None,
+                                                               debug=self.biencoder_params["debug"],
+                                                               )
+
+                biencoder_sampler = SequentialSampler(biencoder_tensor_data)
+                biencoder_dataloader = DataLoader(
+                    biencoder_tensor_data, sampler=biencoder_sampler, batch_size=self.biencoder_params["eval_batch_size"]
+                )
+                labels, nns, scores = run_biencoder(
+                    self.biencoder, biencoder_dataloader, candidate_encoding=None, top_k=10, indexer=self.faiss_indexer
+                )
+                context_input, candidate_input, label_input = prepare_crossencoder_data(
+                    self.crossencoder.tokenizer, samples, labels, nns, self.convert_dict["id2title"], self.convert_dict["id2text"], keep_all=True,
+                )
+                context_input = el_modify(context_input, candidate_input, self.crossencoder_params["max_seq_length"])
+                crossencoder_tensor_data = TensorDataset(context_input, label_input)
+                crossencoder_sampler = SequentialSampler(crossencoder_tensor_data)
+                crossencoder_dataloader = DataLoader(
+                    crossencoder_tensor_data, sampler=crossencoder_sampler, batch_size=self.crossencoder_params["eval_batch_size"]
+                )
+                # CrossEncoder Prediction
+                accuracy, index_array, unsorted_scores = run_crossencoder(
+                    self.crossencoder,
+                    crossencoder_dataloader,
+                    logger=logging.Logger(__name__),
+                    context_len=self.biencoder_params["max_context_length"],
+                )
+                el_result = []
+                for entity_list,index_list,sample in zip(nns,index_array,ner_result):
+                    e_id = entity_list[index_list[-1]]
+                    e_title = self.convert_dict["id2title"][e_id]
+                    e_text = self.convert_dict["id2text"][e_id]
+                    e_url = self.convert_dict["id2url"][e_id]
+                    el_result.append({
+                        **sample,
+                        "title":e_title,
+                        "text":e_text,
+                        "id":e_id,
+                        "url":e_url,
+                    })
+                return el_result
+
+
+    # def run(self, sentence):
+    #     url = "https://en.wikipedia.org/wiki/"
         # links = predictor.run(10, *self.et_models, text=sentence, id2url=self.id2url, ner_model=self.et_ner_model)
         # for link in links:
         #     forms = get_all_forms(link["title"])

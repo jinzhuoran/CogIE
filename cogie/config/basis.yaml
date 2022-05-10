@@ -92,21 +92,22 @@ fn:
       bert_model: bert-base-cased
 
 el:
-  blink:
-    path: models/el/blink
-    data:
-      biencoder_model: biencoder_wiki_large.bin
-      biencoder_config: biencoder_wiki_large.json
-      entity_catalogue: entity.jsonl
-      entity_encoding: all_entities_large.t7
-      crossencoder_model: crossencoder_wiki_large.bin
-      crossencoder_config: crossencoder_wiki_large.json
-      index_path: faiss_hnsw_index.pkl
+  english:
+    wiki:
+      path: models/el/wiki/toolkit
+      data:
+        biencoder_model: biencoder_wiki_large.bin
+        biencoder_config: biencoder_wiki_large.json
+        entity_catalogue: entity.jsonl
+        entity_encoding: all_entities_large.t7
+        crossencoder_model: crossencoder_wiki_large.bin
+        crossencoder_config: crossencoder_wiki_large.json
+        index_path: faiss_hnsw_index.pkl
 
-  cognet:
-    path: models/el/cognet
-    data:
-      file: wikidata2wikipedia.json
+    cognet:
+      path: models/el/cognet
+      data:
+        file: wikidata2wikipedia.json
 
 device_id: [ 0 ]
 device: cuda
