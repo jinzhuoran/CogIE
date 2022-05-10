@@ -3,6 +3,8 @@
 @File: bert_frame.py
 @Desc: 
 """
+import sys
+sys.path.append('/data/mentianyi/code/CogIE')
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -11,15 +13,15 @@ from cogie.io.processor.fn.framenet import FrameNetProcessor
 from cogie.io.loader.fn.framenet import FrameNetLoader
 from cogie import *
 
-torch.cuda.set_device(0)
-device = torch.device('cuda:0')
+torch.cuda.set_device(5)
+device = torch.device('cuda:5')
 
 loader = FrameNetLoader()
-train_data, dev_data, test_data = loader.load_all('../../../cognlp/data/fn/framenet/data')
-processor = FrameNetProcessor(frame_path='../../../cognlp/data/fn/framenet/data/frame_vocabulary.txt',
-                              element_path='../../../cognlp/data/fn/framenet/data/element_vocabulary.txt')
+train_data, dev_data, test_data = loader.load_all('../../cognlp/data/fn/framenet/data')
+processor = FrameNetProcessor(frame_path='../../cognlp/data/fn/framenet/data/frame_vocabulary.txt',
+                              element_path='../../cognlp/data/fn/framenet/data/element_vocabulary.txt')
 
-vocabulary = Vocabulary.load('../../../cognlp/data/fn/framenet/data/frame_vocabulary.txt')
+vocabulary = Vocabulary.load('../../cognlp/data/fn/framenet/data/frame_vocabulary.txt')
 
 train_datable = processor.process(train_data)
 train_dataset = DataTableSet(train_datable, to_device=False)
@@ -51,25 +53,25 @@ trainer = Trainer(model,
                   dev_sampler=dev_sampler,
                   drop_last=False,
                   gradient_accumulation_steps=1,
-                  save_path='../../../cogie/data/fn/framenet/model',
+                  save_path='../../../cognlp/data/fn/framenet/model',
                   save_file=None,
                   print_every=None,
                   scheduler_steps=None,
                   validate_steps=None,
-                  save_steps=1,
+                  save_steps=300,
                   grad_norm=None,
                   collate_fn=train_dataset.to_dict,
                   use_tqdm=True,
                   device=device,
-                  device_ids=[0],
+                  device_ids=[5],
                   callbacks=None,
                   metric_key=None,
-                  writer_path='../../../cogie/data/fn/framenet/tensorboard',
+                  writer_path='../../../cognlp/data/fn/framenet/tensorboard',
                   fp16=False,
                   fp16_opt_level='O1',
                   checkpoint_path=None,
                   task='framenet-test',
-                  logger_path='../../../cogie/data/fn/framenet/logger')
+                  logger_path='../../../cognlp/data/fn/framenet/logger')
 
 trainer.train()
 print(1)
