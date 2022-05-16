@@ -8,32 +8,29 @@ from ..loader import Loader
 from cogie.utils import load_json
 import nltk
 from cogie.core.datable import DataTable
-import json
-from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
 
 
-class TrexNerLoader(Loader):
+class TrexSpoLoader(Loader):
     def __init__(self,debug=False):
         super().__init__()
         self.debug = debug
 
     def _load(self, path):
         datas = load_json(path)
-        # datas = datas[0:int(len(datas)/20)]
         if self.debug:
             datas = datas[0:100]
         dataset = DataTable()
         for data in tqdm(datas):
             text = data['text']
-            entities = data['entities']
             sentences_boundaries = data['sentences_boundaries']
             words_boundaries = data["words_boundaries"]
+            triples = data["triples"]
+            if not triples: # if there is no triples
+                continue
 
             prev_length = 0
-            sentences = []
-            ners = []
             for i, sentences_boundary in enumerate(sentences_boundaries):
                 charid2wordid = {}
                 sentence = []
@@ -45,27 +42,32 @@ class TrexNerLoader(Loader):
                         charid2wordid = {**charid2wordid, **{key: j - prev_length for key in range(start, end + 1)}}
                         sentence.append(text[start:end])
                 prev_length += len(sentence)
-                sentences.append(sentence)
+                triples_one_sentence = []
+                for triple in triples:
+                    if triple["sentence_id"] != i:
+                        continue
+                    if triple["subject"] is not None and triple["predicate"] is not None and triple["object"] is not None:
+                        subject, predicate, object = triple["subject"], triple["predicate"], triple["object"]
+                        if subject["boundaries"] is not None and predicate["boundaries"] is not None and object["boundaries"] is not None:
+                            # print(triple)
+                            keys = ["subject","predicate","object"]
+                            for key in keys:
+                                start,end = triple[key]["boundaries"]
+                                triple[key]["boundaries"] = sorted(list(set([charid2wordid[charid] for charid in range(start,end)])))
+                            triples_one_sentence.append({
+                                "subject":triple["subject"]["boundaries"],
+                                "predicate":triple["predicate"]["boundaries"],
+                                "object":triple["object"]["boundaries"],
+                            })
+                if not triples_one_sentence:
+                    continue
+
                 dataset("sentence", sentence)
-                ners_one_sentence = []
-                for entity in entities:
-                    entity_boundary = entity["boundaries"]
-                    start, end = entity_boundary
-                    if start >= sentences_boundary[0] and end <= sentences_boundary[1]:
-                        index = list(set([charid2wordid[charid] for charid in range(start, end)]))
-                        for k in index:
-                            assert k < len(sentence)
-                        ner = {"index": index,
-                               "type": "null"}
-                        ners_one_sentence.append(ner)
-                ners.append(ners_one_sentence)
-                dataset("ner", ners_one_sentence)
+                dataset("triple",triples_one_sentence)
 
         return dataset
 
     def load_all(self, path):
-        label_list = ["null"]
-        self.label_set = set(label_list)
         train_set = self._load(os.path.join(path, 'train.json'))
         dev_set = self._load(os.path.join(path, 'dev.json'))
         test_set = self._load(os.path.join(path, 'test.json'))
