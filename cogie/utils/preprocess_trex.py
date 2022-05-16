@@ -17,6 +17,7 @@ def load_json(file_path):
     return data
 
 files = [os.path.join(input_path,f) for f in os.listdir(input_path) if f.endswith(".json")]
+sorted_files = sorted(files,key=lambda x:x.split("-")[1].split("_")[1])
 files = files[0:num]
 all_datas = []
 for file in tqdm(files):
