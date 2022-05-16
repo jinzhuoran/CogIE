@@ -23,7 +23,7 @@ class EeToolkit(BaseToolkit):
         self.corpus = corpus
         download_model(config[task][language][corpus])
         path = config[task][language][corpus]['path']
-        model = config[task][language][corpus]['data']['models']
+        model = config[task][language][corpus]['data']['model']
         trigger_vocabulary = config[task][language][corpus]['data']['trigger_vocabulary']
         argument_vocabulary = config[task][language][corpus]['data']['argument_vocabulary']
         bert_model = config[task][language][corpus]['bert_model']

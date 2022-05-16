@@ -1,6 +1,5 @@
 import sys
-sys.path.append('/data/zhuoran/code/cognlp')
-sys.path.append('/data/zhuoran/cognlp')
+sys.path.append('/data/mentianyi/code/CogIE')
 
 from cogie import *
 import torch
@@ -18,11 +17,11 @@ torch.cuda.set_device(4)
 device = torch.device('cuda:0')
 
 loader = ACE2005Loader()
-train_data, dev_data, test_data = loader.load_all('../../../cognlp/data/ee/ace2005/data')
-processor = ACE2005Processor(trigger_path='../../../cognlp/data/ee/ace2005/vocabulary.txt',
-                             argument_path='../../../cognlp/data/ee/ace2005/argument_vocabulary.txt')
-trigger_vocabulary = Vocabulary.load('../../../cognlp/data/ee/ace2005/vocabulary.txt')
-argument_vocabulary = Vocabulary.load('../../../cognlp/data/ee/ace2005/argument_vocabulary.txt')
+train_data, dev_data, test_data = loader.load_all('../../cognlp/data/ee/ace2005/data')
+processor = ACE2005Processor(trigger_path='../../cognlp/data/ee/ace2005/vocabulary.txt',
+                             argument_path='../../cognlp/data/ee/ace2005/argument_vocabulary.txt')
+trigger_vocabulary = Vocabulary.load('../../cognlp/data/ee/ace2005/vocabulary.txt')
+argument_vocabulary = Vocabulary.load('../../cognlp/data/ee/ace2005/argument_vocabulary.txt')
 
 train_datable = processor.process(train_data)
 train_dataset = DataTableSet(train_datable, to_device=False)
@@ -59,7 +58,7 @@ trainer = Trainer(model,
                   print_every=None,
                   scheduler_steps=None,
                   validate_steps=None,
-                  save_steps=100,
+                  save_steps=700,
                   grad_norm=1.0,
                   use_tqdm=True,
                   device=device,
