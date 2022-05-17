@@ -55,6 +55,14 @@ et:
         vocabulary: vocabulary.txt
       bert_model: bert-base-cased
 
+    ufet:
+      path: models/et/ufet/toolkit
+      data:
+        model: models.pt
+        model_config: ufet_config.json
+        vocabulary: vocabulary.txt
+      bert_model: bert-large-uncased-whole-word-masking
+
 re:
   english:
     trex:
