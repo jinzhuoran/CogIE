@@ -21,7 +21,7 @@ class TrexNerLoader(Loader):
 
     def _load(self, path):
         datas = load_json(path)
-        # datas = datas[0:int(len(datas)/20)]
+        # datas = datas[0:int(len(datas)/2000)]
         if self.debug:
             datas = datas[0:100]
         dataset = DataTable()

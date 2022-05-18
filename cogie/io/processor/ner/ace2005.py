@@ -6,7 +6,41 @@
 from cogie.core import *
 from ..processor import Processor
 from tqdm import tqdm
+from .trex_ner import process_w2ner
 
+class ACE2005W2NerProcessor(Processor):
+    def __init__(self, label_list=None, path=None, padding=None, unknown=None, bert_model='bert-base-cased',
+                 max_length=256):
+        super().__init__(label_list, path, padding=padding, unknown=unknown, bert_model=bert_model,
+                         max_length=max_length)
+
+    def process(self, dataset):
+        datable = DataTable()
+        for item in tqdm(dataset, desc='Processing Data'):
+            sentence = item["words"]
+            golden_entity_mentions = item["golden-entity-mentions"]
+            ner = []
+            for entity in golden_entity_mentions:
+                start,end,entity_type = entity["start"],entity["end"],entity["entity-type"]
+                ner.append({
+                    "index":sorted([id for id in range(start,end)]),
+                    "type":entity_type,
+                })
+
+            bert_inputs,attention_masks,\
+            grid_labels, grid_mask2d, \
+            pieces2word, dist_inputs, \
+            sent_length, entity_text = \
+                process_w2ner(sentence,ner,self.tokenizer,self.vocabulary,self.max_length)
+
+            datable('bert_inputs', bert_inputs)
+            datable('attention_masks',attention_masks)
+            datable('grid_labels', grid_labels)
+            datable('grid_mask2d', grid_mask2d)
+            datable('pieces2word', pieces2word)
+            datable('dist_inputs', dist_inputs)
+            datable('sent_length', sent_length)
+        return datable
 
 class ACE2005NerProcessor(Processor):
     def __init__(self, label_list=None, path=None, padding=None, unknown=None, bert_model='bert-base-cased',
@@ -38,7 +72,6 @@ class ACE2005NerProcessor(Processor):
             datable('label_ids', label_id)
             datable('label_masks', label_mask)
         return datable
-
 
 def process(words, labels, tokenizer, vocabulary, max_seq_length):
     input_id = []

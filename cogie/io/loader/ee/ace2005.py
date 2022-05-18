@@ -45,10 +45,14 @@ class ACE2005Loader:
         self.trigger_label_set = set()
         self.trigger_label_set.add('O')
         self.argument_label_set = set()
+        self.entity_label_set = set()
 
     def _load(self, path):
         data = load_json(path)
         for item in data:
+            for entity in item["golden-entity-mentions"]:
+                self.entity_label_set.add(entity["entity-type"])
+
             for event_mention in item['golden-event-mentions']:
                 for i in range(event_mention['trigger']['start'], event_mention['trigger']['end']):
                     trigger_type = event_mention['event_type']
@@ -77,6 +81,11 @@ class ACE2005Loader:
 
     def get_trigger_labels(self):
         labels = list(self.trigger_label_set)
+        labels.sort()
+        return labels
+
+    def get_entity_labels(self):
+        labels = list(self.entity_label_set)
         labels.sort()
         return labels
 
