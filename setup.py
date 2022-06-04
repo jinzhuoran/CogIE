@@ -1,6 +1,6 @@
 from setuptools import setup
 
-with open("README.md",encoding="utf-8") as f:
+with open("README.md","r",encoding="utf-8") as f:
     readme = f.read()
 
 with open('LICENSE', encoding='utf-8') as f:
@@ -10,11 +10,11 @@ with open("requirement.txt",encoding="utf-8") as f:
     reqs = f.read()
 
 setup(
-    name="CogIE",
+    name="cogie",
     version="0.1.0",
     description="CogIE: An Information Extraction Toolkit for Bridging Text and CogNet",
-    long_description_contenxt_type="text/markdown",
-    long_description=readme,
+    # long_description_contenxt_type="text/markdown",
+    # long_description=readme,
     url="https://github.com/jinzhuoran/CogIE/",
     author="CogNLP Team",
     author_email="zhuoran.jin@nlpr.ia.ac.cn",
