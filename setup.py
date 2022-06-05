@@ -11,7 +11,7 @@ with open("requirements.txt", encoding="utf-8") as f:
 
 setup(
     name="cogie",
-    version="0.1.2",
+    version="0.1.3",
     description="CogIE: An Information Extraction Toolkit for Bridging Text and CogNet",
     # long_description_contenxt_type="text/markdown",
     # long_description=readme,
