@@ -1,7 +1,7 @@
-torch==1.7.0
-transformers==4.4.2
-nltk==3.5
-prettytable==2.1.0
-pyyaml==5.4.1
-pytorch-crf==1.1.0
-tensorboard==2.4.1
+torch>=1.7.0
+transformers>=4.4.2
+nltk>=3.5
+prettytable>=2.1.0
+pyyaml>=5.4.1
+pytorch-crf>=1.1.0
+tensorboard>=2.4.1
