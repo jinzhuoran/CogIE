@@ -6,12 +6,12 @@ with open("README.md","r",encoding="utf-8") as f:
 with open('LICENSE', encoding='utf-8') as f:
     license = f.read()
 
-with open("requirement.txt",encoding="utf-8") as f:
+with open("requirements.txt", encoding="utf-8") as f:
     reqs = f.read()
 
 setup(
     name="cogie",
-    version="0.1.0",
+    version="0.1.1",
     description="CogIE: An Information Extraction Toolkit for Bridging Text and CogNet",
     # long_description_contenxt_type="text/markdown",
     # long_description=readme,
