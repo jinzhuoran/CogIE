@@ -157,7 +157,7 @@ class DenseHNSWFlatIndexer(DenseIndexer):
     def search_knn(self, query_vectors, top_k):
         aux_dim = np.zeros(len(query_vectors), dtype="float32")
         query_nhsw_vectors = np.hstack((query_vectors, aux_dim.reshape(-1, 1)))
-        logger.info("query_hnsw_vectors %s", query_nhsw_vectors.shape)
+        # logger.info("query_hnsw_vectors %s", query_nhsw_vectors.shape)
         scores, indexes = self.index.search(query_nhsw_vectors, top_k)
         return scores, indexes
 

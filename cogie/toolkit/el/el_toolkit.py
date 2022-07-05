@@ -389,7 +389,8 @@ def prepare_crossencoder_mentions(
 
     context_input_list = []  # samples X 128
 
-    for sample in tqdm(samples):
+    # for sample in tqdm(samples):
+    for sample in samples:
         context_tokens = get_context_representation(
             sample,
             tokenizer,
@@ -514,7 +515,8 @@ def run_biencoder(biencoder, dataloader, candidate_encoding, top_k=100, indexer=
     labels = []
     nns = []
     all_scores = []
-    for batch in tqdm(dataloader):
+    # for batch in tqdm(dataloader):
+    for batch in dataloader:
         context_input, _, label_ids = batch
         with torch.no_grad():
             if indexer is not None:
@@ -633,7 +635,7 @@ def run_crossencoder(crossencoder, dataloader, logger, context_len, device="cuda
     accuracy = 0.0
     crossencoder.to(device)
 
-    res = evaluate(crossencoder, dataloader, device, logger, context_len, zeshel=False, silent=False)
+    res = evaluate(crossencoder, dataloader, device, logger, context_len, zeshel=False, silent=True)
     accuracy = res["normalized_accuracy"]
     logits = res["logits"]
 
