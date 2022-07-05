@@ -22,7 +22,7 @@ def ner():
     sentence = request.values.get("sentence")
     words = tokenize_toolkit.run(sentence)
     ner_result = ner_toolkit.run(words)
-    return jsonify(ner_result)
+    return jsonify({"sentence": " ".join(words), "ner_result": ner_result})
 
 
 @app.route("/linking", methods=["GET", "POST"])
@@ -31,7 +31,10 @@ def linking():
     words = tokenize_toolkit.run(sentence)
     ner_result = ner_toolkit.run(words)
     el_result = el_toolkit.run(ner_result)
-    return jsonify(el_result)
+    return jsonify({
+        "sentence": " ".join(words),
+        "el_result": [{"mention":entity["mention"],"text":entity["text"]} for entity in el_result]}
+    )
 
 
 @app.route("/typing", methods=["GET", "POST"])
@@ -40,7 +43,7 @@ def typing():
     words = tokenize_toolkit.run(sentence)
     ner_result = ner_toolkit.run(words)
     et_result = et_toolkit.run(ner_result)
-    return jsonify(et_result)
+    return jsonify({"sentence": " ".join(words), "et_result": et_result})
 
 
 if __name__ == '__main__':

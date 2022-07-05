@@ -1,15 +1,58 @@
 <!DOCTYPE html>
 <html lang="en">
+<style>
+    /* 覆盖某些浏览器对 input 元素定义的字体 */
+input[type=submit] {
+    font-family: inherit;
+    size: 50px;
+}
+
+input[type=text] {
+    border: 1px solid #ddd;
+    width: 2000px;
+    height: 50px;
+    font-size: 20pt;
+}
+
+
+.btn {
+    font-size: 12px;
+    padding: 3px 5px;
+    text-decoration: none;
+    cursor: pointer;
+    background-color: white;
+    color: black;
+    border: 1px solid #555555;
+    border-radius: 5px;
+}
+
+.btn:hover {
+    text-decoration: none;
+    background-color: black;
+    color: white;
+    border: 1px solid black;
+}
+</style>
 <head>
     <meta charset="UTF-8">
     <title>Entity Linking Example</title>
 </head>
 <body>
     <body>
-    <form action = "http://210.75.240.137:9988/linking" method="post">
-        <p>Enter the setence:</p>
-        <p><input type="text" name="sentence" value="" ></p>
-        <p><input type="submit" value="Linking"></p>
+    <form action = " http://210.75.240.137:9988/ner" method="post">
+        <p>命名实体识别:</p>
+        <p><input type="text" name="sentence" value=""></p>
+        <p><input type="submit" value="识别"></p>
+    </form>
+        <form action = " http://210.75.240.137:9988/linking" method="post">
+        <p>实体链接:</p>
+        <p><input type="text" name="sentence" value=""></p>
+        <p><input type="submit" value="识别"></p>
+    </form>
+        <form action = " http://210.75.240.137:9988/typing" method="post">
+        <p>实体属性识别:</p>
+        <p><input type="text" name="sentence" value=""></p>
+        <p><input type="submit" value="识别"></p>
     </form>
     </body>
 </body>
