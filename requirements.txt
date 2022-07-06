@@ -1,8 +1,6 @@
 torch>=1.7.0
 transformers>=4.4.2
 scikit-learn>=1.0.1
-allennlp>=2.9.3
-allennlp-models>=2.9.3
 termcolor>=1.1.0
 colorama>=0.4.4
 pytorch_transformers>=1.2.0
