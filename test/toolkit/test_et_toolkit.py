@@ -18,6 +18,15 @@ ner_result = ner_toolkit.run(words)
 et_result = et_toolkit.run(ner_result)
 print(et_result)
 
+returned_et_result = [
+            {
+                "mention":words[entity["start"]:entity["end"]],
+                "start":entity["start"],
+                "end":entity["end"],
+                "type":entity["types"]
+            }
+            for entity in et_result
+        ]
 print("Entity Typing Result:")
 for entity in et_result:
     for key in ["mention","type","types"]:

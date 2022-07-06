@@ -33,7 +33,6 @@ def ner():
                 "mention":words[entity["start"]:entity["end"]],
                 "start":entity["start"],
                 "end":entity["end"],
-                "type":entity["type"]
             }
             for entity in ner_result
         ]
@@ -88,7 +87,18 @@ def relation():
     words = tokenize_toolkit.run(sentence)
     ner_result = re_ner_toolkit.run(words)
     re_result = re_toolkit.run(words, ner_result)
-    return jsonify({"words": words, "ner_result": ner_result, "re_result": re_result})
+    return jsonify({
+        "words": words,
+        "ner_result": [
+            {
+                "mention":words[entity["start"]:entity["end"]],
+                "start":entity["start"],
+                "end":entity["end"],
+            }
+            for entity in ner_result
+        ],
+        "re_result": re_result
+    })
 
 
 @app.route('/frame', methods=["GET", "POST"])
