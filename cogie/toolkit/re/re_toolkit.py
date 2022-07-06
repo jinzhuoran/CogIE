@@ -23,7 +23,7 @@ class ReToolkit(BaseToolkit):
         self.corpus = corpus
         download_model(config[task][language][corpus])
         path = config[task][language][corpus]['path']
-        model = config[task][language][corpus]['data']['models']
+        model = config[task][language][corpus]['data']['model']
         vocabulary = config[task][language][corpus]['data']['vocabulary']
         bert_model = config[task][language][corpus]['bert_model']
         device = torch.device(config['device'])

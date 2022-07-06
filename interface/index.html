@@ -5,6 +5,8 @@
 input[type=submit] {
     font-family: inherit;
     size: 50px;
+    width: 70px;
+    height: 40px;
 }
 
 input[type=text] {
@@ -13,25 +15,10 @@ input[type=text] {
     height: 50px;
     font-size: 20pt;
 }
-
-
-.btn {
-    font-size: 12px;
-    padding: 3px 5px;
-    text-decoration: none;
-    cursor: pointer;
-    background-color: white;
-    color: black;
-    border: 1px solid #555555;
-    border-radius: 5px;
+p {
+  font-size: 25px;
 }
 
-.btn:hover {
-    text-decoration: none;
-    background-color: black;
-    color: white;
-    border: 1px solid black;
-}
 </style>
 <head>
     <meta charset="UTF-8">
@@ -41,18 +28,33 @@ input[type=text] {
     <body>
     <form action = " http://210.75.240.137:9988/ner" method="post">
         <p>命名实体识别:</p>
-        <p><input type="text" name="sentence" value=""></p>
+        <p><input type="text" name="sentence" value="Why has United States invaded Ukraine and what does Trump want Putin to do?"></p>
         <p><input type="submit" value="识别"></p>
     </form>
-        <form action = " http://210.75.240.137:9988/linking" method="post">
+    <form action = " http://210.75.240.137:9988/linking" method="post">
         <p>实体链接:</p>
-        <p><input type="text" name="sentence" value=""></p>
+        <p><input type="text" name="sentence" value="Why has United States invaded Ukraine and what does Trump want Putin to do?"></p>
+        <p><input type="submit" value="链接"></p>
+    </form>
+    <form action = " http://210.75.240.137:9988/typing" method="post">
+        <p>实体属性识别:</p>
+        <p><input type="text" name="sentence" value="TianyiMen is writing code diligently in CASIA."></p>
         <p><input type="submit" value="识别"></p>
     </form>
-        <form action = " http://210.75.240.137:9988/typing" method="post">
-        <p>实体属性识别:</p>
-        <p><input type="text" name="sentence" value=""></p>
-        <p><input type="submit" value="识别"></p>
+    <form action = " http://210.75.240.137:9988/relation" method="post">
+        <p>关系抽取:</p>
+        <p><input type="text" name="sentence" value="New details about the midnight phone call from the president of the National Basketball Players Association, Chris Paul, to the former President of the United States, Barack Obama, that helped save the NBA season have surfaced."></p>
+        <p><input type="submit" value="抽取"></p>
+    </form>
+    <form action = " http://210.75.240.137:9988/frame" method="post">
+        <p>frame抽取:</p>
+        <p><input type="text" name="sentence" value="DALnet is an Internet Relay Chat (IRC) network made up of 33 servers, with a stable population of approximately 8,000 users in about 7,000 channels. DALnet is accessible by connecting with an IRC client to an active DALnet server on ports 6660 through 6669, and 7000. SSL users can connect on port 6697 as well. The generic round-robin address is irc.dal.net."></p>
+        <p><input type="submit" value="抽取"></p>
+    </form>
+    <form action = " http://210.75.240.137:9988/event" method="post">
+        <p>事件抽取:</p>
+        <p><input type="text" name="sentence" value="Well, let's look at what the president is actually proposing for people who have been harmed by a bad doctor."></p>
+        <p><input type="submit" value="抽取"></p>
     </form>
     </body>
 </body>
