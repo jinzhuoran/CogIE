@@ -19,7 +19,7 @@ el_result = el_toolkit.run(ner_result)
 
 print("Entity Linking Result:")
 for entity in el_result:
-    for key in ["mention","title","text","url"]:
+    for key in ["mention","title","text","url","cognet_link"]:
         print("{}:{}".format(key,entity[key]))
     print("------------------------------")
 

@@ -7,6 +7,8 @@ from .vocabulary import *
 from .util import *
 from .model import *
 from .frameontology import *
+from .cognet import *
+
 __all__ = [
     "Vocabulary",
     "load_json",

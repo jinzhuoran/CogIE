@@ -111,6 +111,7 @@ el:
         crossencoder_model: crossencoder_wiki_large.bin
         crossencoder_config: crossencoder_wiki_large.json
         index_path: faiss_hnsw_index.pkl
+        wikipedia2wikidata_path: wikipedia2wikidata.json
 
     cognet:
       path: models/el/cognet

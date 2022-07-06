@@ -58,31 +58,19 @@ class ElToolkit(BaseToolkit):
                     v: "https://en.wikipedia.org/wiki?curid=%s" % k
                     for k, v in wikipedia_id2local_id.items()
                 }
+                local_id2wikipedia_id = {
+                    v:k for k,v in wikipedia_id2local_id.items()
+                }
                 self.convert_dict = {
                     "title2id":title2id,
                     "id2title":id2title,
                     "id2text":id2text,
                     "wikipedia_id2local_id":wikipedia_id2local_id,
                     "id2url":id2url,
+                    "local_id2wikipedia_id":local_id2wikipedia_id,
                 }
-
-
-
-
-
-
-    # def __init__(self, task='el', language='english', corpus=None):
-    #     super().__init__()
-    #     self.task = task
-    #     self.language = language
-    #     self.corpus = corpus
-    #     config = load_configuration()
-    #     download_model(config[task]['cognet'])
-    #     path = config['el']['cognet']['path']
-    #     file = config['el']['cognet']['data']['file']
-    #     self.wikidata2wikipedia = load_json(absolute_path(path, file))
-    #     self.cognet = CognetServer()
-        # self.id2url, self.et_ner_model, self.et_models = predictor.get_et_predictor()
+                self.wikipedia2wikidata = load_json(config[task][language][corpus]['data']['wikipedia2wikidata_path'])
+                self.cognet = CognetServer()
 
     _instance_lock = threading.Lock()
 
@@ -139,17 +127,27 @@ class ElToolkit(BaseToolkit):
                     context_len=self.biencoder_params["max_context_length"],
                 )
                 el_result = []
+                url = "https://en.wikipedia.org/wiki/"
                 for entity_list,index_list,sample in zip(nns,index_array,ner_result):
                     e_id = entity_list[index_list[-1]]
                     e_title = self.convert_dict["id2title"][e_id]
                     e_text = self.convert_dict["id2text"][e_id]
                     e_url = self.convert_dict["id2url"][e_id]
+                    cognet_link = "unk"
+                    wikipedia = url + e_title
+                    if wikipedia in self.wikipedia2wikidata:
+                        wikidata = self.wikipedia2wikidata[wikipedia]
+                        cognet_link = self.cognet.query("<" + wikidata + ">")
+                        e_id_cognet = cognet_link.split("/")[-1]
+                        cognet_link = "http://cognet.top/detail.html?id=ent:"+e_id_cognet
+
                     el_result.append({
                         **sample,
                         "title":e_title,
                         "text":e_text,
                         "id":e_id,
                         "url":e_url,
+                        "cognet_link":cognet_link,
                     })
                 return el_result
 
