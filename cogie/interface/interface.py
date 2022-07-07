@@ -87,6 +87,12 @@ def relation():
     words = tokenize_toolkit.run(sentence)
     ner_result = re_ner_toolkit.run(words)
     re_result = re_toolkit.run(words, ner_result)
+    for i,result in enumerate(re_result):
+        start,end = result["head_entity"]["start"],result["head_entity"]["end"]
+        re_result[i]["head_entity"]["mention"] = words[start:end]
+        start,end = result["tail_entity"]["start"],result["tail_entity"]["end"]
+        re_result[i]["tail_entity"]["mention"] = words[start:end]
+
     return jsonify({
         "words": words,
         "ner_result": [
